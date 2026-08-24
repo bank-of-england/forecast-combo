@@ -1,0 +1,159 @@
+[project]
+site_name = "Forecast Combination Toolkit"
+site_description = "Documentation for the forecast-combo Python package — a toolkit for combining forecasts from multiple sources."
+site_author = "Bank of England"
+copyright = "Copyright &copy; 2026 Bank of England"
+
+# Add the public documentation URL once the site has been deployed.
+# site_url = "https://www.example.com/"
+
+# Add repository links once the GitHub repository is public.
+# repo_url = "https://github.com/bank-of-england/forecast-combo"
+# repo_name = "bank-of-england/forecast-combo"
+# edit_uri = "edit/main/docs/"
+
+nav = [
+  { "Home" = "index.md" },
+  { "API Reference" = "api.md" },
+  { "Combination Methods" = "methods.md" },
+  { "About" = "about.md" },
+]
+
+# Additional JavaScript used by the documentation site.
+extra_javascript = [
+  "javascripts/mathjax.js",
+  { url = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js", async = true },
+]
+
+# Generate API reference pages from the public Python objects in src/.
+[project.plugins.mkdocstrings]
+enabled = true
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+show_source = false
+show_root_heading = true
+members_order = "source"
+show_signature_annotations = true
+
+[project.theme]
+# Use the default Zensical theme and English interface labels.
+language = "en"
+features = [
+  # Show a dismissible announcement bar.
+  "announce.dismiss",
+  # Add buttons to view or edit each page in the public repository.
+  # "content.action.edit",
+  # "content.action.view",
+  # Add annotations to selected code blocks.
+  "content.code.annotate",
+  # Add a copy button to code blocks.
+  "content.code.copy",
+  # Allow selecting code block lines.
+  "content.code.select",
+  # Render footnotes as inline tooltips.
+  "content.footnote.tooltips",
+  # Link matching content tabs together.
+  "content.tabs.link",
+  # Enable tooltip syntax in Markdown.
+  "content.tooltips",
+  # "header.autohide",
+  # "navigation.expand",
+  # Add previous/next links in the footer.
+  "navigation.footer",
+  # Enable section index pages.
+  "navigation.indexes",
+  # Enable navigation without full page reloads.
+  "navigation.instant",
+  # Prefetch pages when links are hovered.
+  "navigation.instant.prefetch",
+  # "navigation.instant.progress",
+  # Show the current navigation path.
+  "navigation.path",
+  # "navigation.prune",
+  # Group navigation into sections on wide screens.
+  "navigation.sections",
+  # "navigation.tabs",
+  # "navigation.tabs.sticky",
+  # Show a back-to-top button.
+  "navigation.top",
+  # Track the active heading in the URL.
+  "navigation.tracking",
+  # Highlight search terms after opening a result.
+  "search.highlight",
+  # "toc.follow",
+  # "toc.integrate",
+]
+
+# Optional site logo.
+# logo = "assets/logo.png"
+
+# Optional theme icon used when no image logo is configured.
+# [project.theme.icon]
+# logo = "lucide/smile"
+
+# Optional fonts. The defaults are suitable for this documentation site.
+# [project.theme.font]
+# text = "Inter"
+# code = "Jetbrains Mono"
+
+# Provide light, dark, and system-preference theme choices.
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+# Optional links displayed in the site header or footer.
+# [[project.extra.social]]
+# icon = "fontawesome/brands/github"
+# link = "https://github.com/user/repo"
+
+# [[project.extra.social]]
+# icon = "fontawesome/brands/mastodon"
+# link = "https://fosstodon.org/@user"
+
+# Markdown extensions used by the documentation pages.
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+toc.permalink = true
+pymdownx.arithmatex.generic = true
+pymdownx.betterem = {}
+pymdownx.caret = {}
+pymdownx.details = {}
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.keys = {}
+pymdownx.magiclink = {}
+pymdownx.mark = {}
+pymdownx.smartsymbols = {}
+# pymdownx.snippets.base_path = "includes"
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tabbed.combine_header_slug = true
+pymdownx.tasklist.custom_checkbox = true
+pymdownx.tilde = {}

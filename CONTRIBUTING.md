@@ -1,0 +1,174 @@
+# Contributor Guide
+### Initial Setup
+
+1. **Fork and clone the repository**
+   ```bash
+   git clone https://github.com/bank-of-england/forecast-combo.git
+   cd forecast-combo
+   ```
+
+2. **Set up development environment**
+   ```bash
+   conda create --name forecast-combo 
+   conda activate forecast-combo
+   conda install pip
+   pip install -e .[dev] # Install package in editable mode with dev dependencies
+   ```
+
+3. **Install pre-commit hooks**
+   ```bash
+   pre-commit install
+   ```
+
+Pre-commit runs the following checks when you commit changes:
+
+- Ruff's linter, with automatic fixes where possible
+- Ruff's formatter
+- API documentation generation from the public exports in `src/forecast_combo`
+- NumPy-style docstring validation with `pydoclint`
+- The full pytest suite
+
+The generated API manifest is written to `docs/api.md`. If a source module's
+public API changes, the hook updates that file so it can be included in the
+same commit. To run every hook across the repository without creating a
+commit, use:
+
+```bash
+pre-commit run --all-files
+```
+
+Pre-commit does not build the documentation site or distribution package; run
+the commands in the [Documentation](#documentation) and [Code Style](#code-style)
+sections when you need to check those artefacts.
+
+4. **Verify installation**
+   ```bash
+   pytest
+   ```
+
+## Development Workflow
+
+### Branch Strategy
+
+- **`main`**: Production-ready code
+- **Feature branches**: `feature/your-feature-name`
+- **Bug fixes**: `fix/issue-description`
+- **Documentation**: `docs/topic-name`
+
+### Creating a Feature Branch
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b feature/your-feature-name
+```
+
+### Keeping Your Branch Updated
+
+```bash
+git checkout main
+git pull origin main
+git checkout feature/your-feature-name
+git rebase main  # Or merge if you prefer
+```
+
+### Commit your changes
+
+```bash
+git add .
+git commit -m "describe your changes"
+git push  # or git push origin feature/your-feature-name
+```
+
+## Code Standards
+
+### Code Style
+
+We use **Ruff** for formatting and linting:
+
+```bash
+# Format code
+ruff format .
+
+# Check for issues
+ruff check .
+
+# Auto-fix issues where possible
+ruff check . --fix
+
+# Verify formatting without changing files
+ruff format --check .
+
+# Build the package
+python -m build
+
+# Build the documentation
+zensical build
+```
+
+## Documentation
+
+The documentation site is built with Zensical. API pages are rendered by
+`mkdocstrings` from the public objects listed in each package `__all__`
+declaration. `docs/api.md` is the generated manifest that connects those
+objects to the API reference; edit the source docstrings and public exports,
+not the generated directives in that file.
+
+Install the documentation dependencies in an existing development
+environment with:
+
+```bash
+pip install -e ".[docs]"
+```
+
+Regenerate the API manifest explicitly when needed:
+
+```bash
+python scripts/generate_api_docs.py
+```
+
+Build the complete documentation site locally, including strict validation:
+
+```bash
+zensical build --clean --strict
+```
+
+The continuous integration checks regenerate `docs/api.md` and fail if that
+produces a diff, so generated API documentation cannot become stale silently.
+
+### Naming Conventions
+
+- **Variables**: `snake_case`
+- **Functions/methods**: `snake_case`
+- **Classes**: `PascalCase`
+- **Constants**: `UPPER_SNAKE_CASE`
+- **Private functions/methods**: `_leading_underscore`
+
+## Submitting Changes
+
+### Before Submitting
+
+1. **Open an issue** to discuss the bug or feature you want to work on.
+
+2. **Use the issue number to create a branch; i.e. fix/#1-prior**
+
+3. **Make your changes**
+
+4. **Add a test covering the new feature**
+
+
+5. **Format, document and test the code**
+   ```bash
+   ruff format # format code
+   ruff check # format code
+   pytest # check that everything is working as intended
+   ```
+
+6. **Commit and push your changes**
+   ```bash
+   git add .
+   git commit -m "Fixes #1: Describe your changes"
+   git push origin fix/#1-prior
+   ```
+
+7. **Submit a pull request**

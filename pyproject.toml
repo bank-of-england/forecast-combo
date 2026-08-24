@@ -1,0 +1,122 @@
+[project]
+name = "forecast-combo"
+version = "0.1.0"
+
+description = "A package for Forecast Combination"
+
+keywords = ["forecasting", "forecast combination", "econometrics", "time series"]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+authors = [
+    {name="Filippo Busetto", email="Filippo.Busetto@bankofengland.co.uk"},
+    {name="Paul Labonne", email="Paul.Labonne@bankofengland.co.uk"},
+    {name="James McConachie", email="James.McConachie@bankofengland.co.uk"},
+    {name="Roshni Tara", email="Roshni.Tara@bankofengland.co.uk"},
+]
+
+maintainers = [
+    {name="Paul Labonne", email="paul.labonne@bankofengland.co.uk"},
+    {name="Filippo Busetto", email="Filippo.Busetto@bankofengland.co.uk"},
+    {name="James McConachie", email="James.McConachie@bankofengland.co.uk"},
+]
+
+license = {file = "LICENSE"}
+
+readme = "README.md"
+
+requires-python = ">=3.10"
+
+dependencies = [
+    "forecast_evaluation>=0.1.13",
+    "jax",
+    "pandas",
+    "tqdm",
+    "numpy",
+    "scipy",
+]
+
+[project.urls]
+Homepage = "https://github.com/bank-of-england/forecast-combo"
+Issues = "https://github.com/bank-of-england/forecast-combo/issues"
+
+[project.optional-dependencies]
+plots = [
+    "matplotlib",
+]
+
+dashboard = [
+    "matplotlib",
+    "shiny",
+]
+
+dev = [
+    "matplotlib",
+    "pre_commit",
+    "pydoclint",
+    "pytest",
+    "pytest-xdist", # to run tests in parallel with pytest -n auto
+    "pytest-cov",
+    "ruff",
+    "build",
+    "shiny",
+    "syrupy",
+]
+
+docs = [
+    "mkdocstrings[python]",
+    "zensical",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# Enable specific rules
+select = [
+    "E",  # pycodestyle
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade
+]
+
+# Ignore specific rules
+ignore = [
+    "D100", # Missing docstring in public module
+    "D104", # Missing docstring in public package,
+    "D213",
+    "D211"
+]
+
+# Exclude files and directories
+exclude = [
+    ".git",
+    ".ruff_cache",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Ignore unused imports in __init__.py files
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["forecast_combo"]
+
+[tool.coverage.report]
+show_missing = true

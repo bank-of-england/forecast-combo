@@ -2,8 +2,6 @@
 
 import warnings
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 from scipy.optimize import minimize
 
@@ -13,8 +11,6 @@ from .._validation import (
     validate_forecast_matrix,
     validate_nonempty_sample,
 )
-
-jax.config.update("jax_enable_x64", True)
 
 
 def _validate_forecast_matrix(X: np.ndarray, y: np.ndarray | None = None) -> None:
@@ -171,20 +167,30 @@ def constrained_least_squares(X: np.ndarray, y: np.ndarray, window_size: int | N
     X = X / scaling_factor
     y = y / scaling_factor
 
-    # Convert to JAX arrays
-    X_jax = jnp.array(X)
-    y_jax = jnp.array(y)
     n_sources = X.shape[1]
 
-    def objective(w):
-        return jnp.sum((y_jax - X_jax @ w) ** 2)
+    # The objective ||y - Xw||^2 is a quadratic form, so both its value and its
+    # gradient follow from the normal-equation quantities:
+    #
+    #     S(w)      = w'Gw - 2 b'w + y'y
+    #     grad S(w) = 2 (Gw - b)          with G = X'X and b = X'y
+    #
+    # Building G and b once makes each SLSQP iteration O(k^2) in the number of
+    # sources rather than O(T k) in the sample size.
+    #
+    # For a near-perfect fit this form of S(w) is a cancelling sum of terms of
+    # order y'y, so ``result.fun`` loses relative precision even though its
+    # absolute error stays around eps * y'y. That is harmless here - SLSQP's
+    # convergence test is absolute and only ``result.x`` is used below - but it
+    # is why ``result.fun`` should not be reported as the residual sum of
+    # squares without recomputing it from the residuals.
+    gram = X.T @ X
+    Xty = X.T @ y
+    yty = y @ y
 
-    # Compute the gradient with JAX
-    grad_fn = jax.grad(objective)
-
-    # Wrappers for SciPy (convert JAX arrays to numpy)
-    def jac(w):
-        return np.array(grad_fn(w))
+    def objective_and_gradient(w):
+        gram_w = gram @ w
+        return w @ gram_w - 2.0 * (Xty @ w) + yty, 2.0 * (gram_w - Xty)
 
     # Initial guess: equal weights
     w0 = np.ones(n_sources) / n_sources
@@ -196,7 +202,14 @@ def constrained_least_squares(X: np.ndarray, y: np.ndarray, window_size: int | N
     bounds = [(0, None) for _ in range(n_sources)]
 
     # Solve with analytical derivatives
-    result = minimize(objective, w0, method="SLSQP", jac=jac, bounds=bounds, constraints=constraints)
+    result = minimize(
+        objective_and_gradient,
+        w0,
+        method="SLSQP",
+        jac=True,
+        bounds=bounds,
+        constraints=constraints,
+    )
 
     if not result.success:
         raise RuntimeError(f"Constrained least-squares optimisation did not converge: {result.message}")

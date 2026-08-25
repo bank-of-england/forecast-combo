@@ -35,7 +35,6 @@ requires-python = ">=3.10"
 
 dependencies = [
     "forecast_evaluation>=0.1.13",
-    "jax",
     "pandas",
     "tqdm",
     "numpy",

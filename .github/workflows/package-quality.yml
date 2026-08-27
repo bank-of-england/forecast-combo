@@ -8,6 +8,11 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to check out"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -19,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548

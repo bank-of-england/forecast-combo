@@ -175,8 +175,9 @@ git push origin fix/#1-prior
 
 ## Creating a Release (for maintainers)
 
-The release automation starts when you push a version tag. The tag must use
-the `v<version>` format and match the version in `pyproject.toml`.
+The release automation starts when you push a version tag or run the release
+workflow manually. The tag must use the `v<version>` format and match the
+version in `pyproject.toml`.
 
 For example, to release version `0.1.1`:
 
@@ -205,6 +206,11 @@ git push origin main v0.1.1
 ```
 
 Pushing the tag starts `.github/workflows/create-release.yml`. That workflow calls the reusable quality workflow and creates the GitHub Release only when Ruff, API documentation checks, pydoclint, the strict Zensical build, and the full test suite pass. A failed check prevents release creation.
+
+You can also run the workflow from the GitHub Actions tab. Select **Create
+GitHub Release**, choose **Run workflow**, and enter the existing version tag
+in the `release_tag` field. The workflow checks out and tests that tag before
+creating its release. Manual runs do not create tags, so push the tag first.
 
 When GitHub publishes the release, two workflows start automatically:
 

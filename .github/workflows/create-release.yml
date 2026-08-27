@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing version tag to release, for example v0.1.1"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -12,6 +18,8 @@ jobs:
   quality:
     name: Run package quality checks
     uses: ./.github/workflows/package-quality.yml
+    with:
+      ref: ${{ inputs.release_tag || github.ref }}
     permissions:
       contents: read
 
@@ -20,7 +28,12 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout tag
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" --title "forecast-combo ${{ github.ref_name }}" --generate-notes --verify-tag
+        run: gh release create "${{ inputs.release_tag || github.ref_name }}" --title "forecast-combo ${{ inputs.release_tag || github.ref_name }}" --generate-notes --verify-tag

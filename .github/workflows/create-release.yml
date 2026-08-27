@@ -1,0 +1,26 @@
+name: Create GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  quality:
+    name: Run package quality checks
+    uses: ./.github/workflows/package-quality.yml
+    permissions:
+      contents: read
+
+  release:
+    name: Create release
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --title "forecast-combo ${{ github.ref_name }}" --generate-notes --verify-tag

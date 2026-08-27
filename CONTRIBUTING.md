@@ -2,23 +2,23 @@
 ## Initial Setup
 
 1. **Fork and clone the repository**
-   ```bash
-   git clone https://github.com/bank-of-england/forecast-combo.git
-   cd forecast-combo
-   ```
+```bash
+git clone https://github.com/bank-of-england/forecast-combo.git
+cd forecast-combo
+```
 
 2. **Set up the development environment**
-   ```bash
-   conda create --name forecast-combo
-   conda activate forecast-combo
-   conda install pip
-   pip install -e ".[dev]"  # Install the package with development dependencies.
-   ```
+```bash
+conda create --name forecast-combo
+conda activate forecast-combo
+conda install pip
+pip install -e ".[dev, docs]"  # Install the package with development dependencies.
+```
 
 3. **Install pre-commit hooks**
-   ```bash
-   pre-commit install
-   ```
+```bash
+pre-commit install
+```
 
 Pre-commit runs the following checks when you commit changes:
 
@@ -42,9 +42,9 @@ the commands in the [Documentation](#documentation) and [Code Style](#code-style
 sections when you need to check those artefacts.
 
 4. **Verify the installation**
-   ```bash
-   pytest
-   ```
+```bash
+pytest
+```
 
 ## Development Workflow
 
@@ -158,17 +158,58 @@ produces a diff, so generated API documentation cannot become stale silently.
 
 
 5. **Format, document, and test the code.**
-   ```bash
-   ruff format
-   ruff check .
-   pytest
-   ```
+```bash
+ruff format
+ruff check .
+pytest
+```
 
 6. **Commit and push the changes.**
-   ```bash
-   git add .
-   git commit -m "Fixes #1: Describe your changes"
-   git push origin fix/#1-prior
-   ```
+```bash
+git add .
+git commit -m "Fixes #1: Describe your changes"
+git push origin fix/#1-prior
+```
 
 7. **Submit a pull request.**
+
+## Creating a Release (for maintainers)
+
+The release automation starts when you push a version tag. The tag must use
+the `v<version>` format and match the version in `pyproject.toml`.
+
+For example, to release version `0.1.1`:
+
+1. Update `version` in `pyproject.toml` to `0.1.1`.
+2. Move the relevant notes from the `Unreleased` section of `CHANGELOG.md` to
+   a `0.1.1` section.
+3. Run the quality checks locally:
+
+```bash
+ruff check .
+ruff format --check .
+python scripts/generate_api_docs.py
+git diff --exit-code -- docs/api.md
+pydoclint --style=numpy .
+zensical build --clean --strict
+pytest
+```
+
+4. Commit the version and changelog updates, then create the matching tag:
+
+```bash
+git add pyproject.toml CHANGELOG.md docs/api.md
+git commit -m "Prepare release 0.1.1"
+git tag v0.1.1
+git push origin main v0.1.1
+```
+
+Pushing the tag starts `.github/workflows/create-release.yml`. That workflow calls the reusable quality workflow and creates the GitHub Release only when Ruff, API documentation checks, pydoclint, the strict Zensical build, and the full test suite pass. A failed check prevents release creation.
+
+When GitHub publishes the release, two workflows start automatically:
+
+- `publish-pypi.yml` builds the distribution and publishes it to PyPI.
+- `deploy-docs.yml` builds the documentation site and deploys it to GitHub Pages.
+
+The release workflow generates GitHub release notes from the commit history.
+Keep `CHANGELOG.md` up to date as the project record; the workflow does not edit that file automatically. The `workflow_dispatch` options in the individual workflows provide manual operations and do not replace the normal tagged-release sequence.

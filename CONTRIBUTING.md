@@ -206,10 +206,9 @@ git push origin main v0.1.1
 ```
 
 Pushing the tag starts `.github/workflows/create-release.yml`. The workflow
-creates the GitHub Release with the repository's `RELEASE_TOKEN` secret. The
-secret must be a fine-grained personal access token with **Contents: Read and
-write** permission for this repository. GitHub then emits the `published`
-release event, which starts these existing workflows:
+runs the package quality checks against the tag. If they pass, it uses GitHub's
+built-in token to create the GitHub Release and start these workflows for the
+tag:
 
 - `publish-pypi.yml` builds the distribution and publishes it to PyPI.
 - `deploy-docs.yml` builds the documentation site and deploys it to GitHub Pages.
@@ -217,4 +216,6 @@ release event, which starts these existing workflows:
 The release workflow generates GitHub release notes from the commit history.
 Keep `CHANGELOG.md` up to date as the project record; the workflow does not
 edit that file automatically. The PyPI and documentation workflows also offer
-manual dispatch when you need to rerun one of them for an existing tag.
+manual dispatch when you need to rerun one of them for an existing tag. A
+release created manually through GitHub starts both workflows through its
+`published` event.

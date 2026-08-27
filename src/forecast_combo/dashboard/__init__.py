@@ -1,4 +1,4 @@
-"""Shiny dashboard for inspecting estimated combination weights."""
+"""Shiny dashboard for inspecting combination weights."""
 
 from forecast_combo._optional import require_optional_dependency
 

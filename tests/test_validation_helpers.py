@@ -67,7 +67,7 @@ def test_validate_forecast_matrix_rejects_non_finite_y():
 
 
 def test_validate_forecast_matrix_does_not_check_emptiness():
-    """Emptiness is a separate, data-dependent concern (validate_nonempty_sample)."""
+    """The shape/value check is separate from the empty-sample check."""
     validate_forecast_matrix(np.empty((0, 2)), np.empty(0))
 
 

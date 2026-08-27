@@ -40,7 +40,7 @@ def _combo_config(
     training_start,
     training_end,
 ) -> tuple:
-    """Return a hashable tuple describing a fit configuration."""
+    """Build a hashable tuple that identifies a fit configuration."""
     periods = tuple(sorted(str(period) for period in period_filter)) if period_filter else ()
     return (
         tuple(sorted(sources)),
@@ -55,7 +55,7 @@ def _combo_config(
 
 
 def _validate_numeric_params(k: int, window_size: "int | None", discount_param: float) -> None:
-    """Validate the scalar numeric fit parameters.
+    """Check the scalar numeric parameters accepted by ``fit``.
 
     Parameters
     ----------
@@ -72,7 +72,7 @@ def _validate_numeric_params(k: int, window_size: "int | None", discount_param: 
 
 
 def _validate_nonempty_unique(values: list[str], name: str) -> None:
-    """Check that ``values`` is nonempty and free of duplicates."""
+    """Require a non-empty list with no duplicate values."""
     if len(values) == 0:
         raise ValueError(f"{name} must not be empty")
     duplicates = sorted({v for v in values if values.count(v) > 1})
@@ -81,7 +81,7 @@ def _validate_nonempty_unique(values: list[str], name: str) -> None:
 
 
 def _validate_optional_date(value, name: str) -> None:
-    """Validate an optional scalar date-like value."""
+    """Check an optional scalar date-like value."""
     if value is None:
         return
     if isinstance(value, (bool, list, tuple, dict, set)):
@@ -95,20 +95,20 @@ def _validate_optional_date(value, name: str) -> None:
 
 
 def _forecast_data_type():
-    """Load ForecastData only when a forecast combiner is constructed."""
+    """Load ``ForecastData`` when a combiner needs the type."""
     from forecast_evaluation import ForecastData
 
     return ForecastData
 
 
 def _validate_bool(value, name: str) -> None:
-    """Validate a boolean parameter."""
+    """Check a boolean parameter."""
     if not isinstance(value, (bool, np.bool_)):
         raise TypeError(f"{name} must be a bool, got {type(value).__name__}")
 
 
 def _validate_label(label: str | None) -> None:
-    """Validate an optional combination label."""
+    """Check an optional combination label."""
     if label is None:
         return
     if not isinstance(label, str):
@@ -118,7 +118,7 @@ def _validate_label(label: str | None) -> None:
 
 
 def _validate_dashboard_params(host, port) -> None:
-    """Validate common dashboard server arguments."""
+    """Check the host and port used by a dashboard server."""
     if not isinstance(host, str):
         raise TypeError(f"host must be a string, got {type(host).__name__}")
     if not host.strip():
@@ -132,7 +132,7 @@ def _validate_dashboard_params(host, port) -> None:
 
 
 def _period_filter_label(period_filter: list | None) -> str | None:
-    """Summarise an excluded-period list as a short, deterministic string."""
+    """Summarise excluded periods in a short, deterministic string."""
     if not period_filter:
         return None
     periods = sorted(str(period) for period in period_filter)
@@ -142,7 +142,7 @@ def _period_filter_label(period_filter: list | None) -> str | None:
 
 
 def _default_combo_label(config: tuple) -> str:
-    """Build a readable label describing a fit's configuration."""
+    """Build a readable label from a fit configuration."""
     sources, metric, k, periods, window_size, discount_param, training_start, training_end = config
     window_label = "all" if window_size is None else str(window_size)
     period_label = ", ".join(periods) if periods else "none"
@@ -155,7 +155,7 @@ def _default_combo_label(config: tuple) -> str:
 
 @dataclass
 class ComboSpec:
-    """Specify one node in a hierarchical forecast combination.
+    """Define one node in a hierarchical forecast combination.
 
     ``sources`` may contain model-name strings or nested ``ComboSpec``
     objects.
@@ -211,7 +211,7 @@ class ComboSpec:
     """
 
     name: str
-    sources: list  # list[str | ComboSpec]
+    sources: list
     method: str = "average"
     training_start: str | None = None
     training_end: str | None = None
@@ -224,16 +224,16 @@ class ComboSpec:
     print_warning: bool = True
 
     def __post_init__(self) -> None:
-        """Validate the specification at construction time."""
+        """Check the specification when the object is created."""
         _validate_combo_spec(self)
 
     @property
     def source_names(self) -> list[str]:
-        """Return source names, resolving nested ``ComboSpec`` objects."""
+        """Return source names and resolve nested ``ComboSpec`` objects."""
         return [s.name if isinstance(s, ComboSpec) else s for s in self.sources]
 
     def flatten_and_validate(self, raw_sources: "set[str] | None" = None) -> list["ComboSpec"]:
-        """Return the specification nodes in dependency order.
+        """Validate the graph and return its nodes in dependency order.
 
         Parameters
         ----------
@@ -255,14 +255,13 @@ def validate_spec_graph(
 ) -> list["ComboSpec"]:
     """Validate a hierarchical ``ComboSpec`` graph and order its nodes.
 
-    Traverses every node reachable from ``roots`` and returns them in
-    dependency order (leaves first), with each distinct node appearing
-    exactly once even when shared between multiple parents or roots.
+    The traversal visits every node reachable from ``roots``. It returns each
+    distinct node once, in dependency order with leaves first.
 
     Parameters
     ----------
     roots : list[ComboSpec]
-        Root specifications whose graphs should be validated together.
+        Root specifications to validate together.
     raw_sources : set[str] | None
         Names of raw forecast sources in the data.  When provided, node
         names are checked for collisions against them.
@@ -294,10 +293,9 @@ def validate_spec_graph(
             raise TypeError("raw_sources must contain only strings")
 
     ordered: list[ComboSpec] = []
-    # Map name -> spec object to enforce globally unique names.
+    # Map each name to its specification so names stay unique.
     names_to_spec: dict[str, ComboSpec] = {}
-    # Three-state DFS colouring keyed by object identity: absent = white
-    # (unvisited), "grey" = on the current path, "black" = fully processed.
+    # Track the three depth-first search states by object identity.
     state: dict[int, str] = {}
     path: list[str] = []
 
@@ -311,13 +309,13 @@ def validate_spec_graph(
         if colour == "black":
             return
 
-        # Distinct specs must not share a name.
+        # Reject the same name on distinct specifications.
         existing = names_to_spec.get(node.name)
         if existing is not None and existing is not node:
             raise ValueError(f"Duplicate ComboSpec name '{node.name}': distinct specs must have globally unique names.")
         names_to_spec[node.name] = node
 
-        # Node names must not collide with raw forecast source names.
+        # Keep specification names distinct from raw source names.
         if raw_sources is not None and node.name in raw_sources:
             raise ValueError(f"ComboSpec name '{node.name}' collides with a raw forecast source of the same name.")
 
@@ -336,7 +334,7 @@ def validate_spec_graph(
 
 
 def _validate_combo_spec(spec: ComboSpec) -> None:
-    """Validate all fields on a ComboSpec, including after mutation."""
+    """Check every ``ComboSpec`` field, including fields changed after creation."""
     if not isinstance(spec.name, str):
         raise TypeError(f"ComboSpec name must be a string, got {type(spec.name).__name__}")
     if not spec.name.strip():
@@ -372,7 +370,7 @@ def _validate_combo_spec(spec: ComboSpec) -> None:
 
 
 class ForecastCombo:
-    """A class for combining and managing forecast data from multiple sources.
+    """Combine and manage forecast data from multiple sources.
 
     A copy of the input forecast data is stored on the instance, and the
     estimated weights accumulate across all :meth:`fit` calls.
@@ -403,12 +401,10 @@ class ForecastCombo:
             raise TypeError("forecast_data must be an instance of ForecastData")
 
         self.forecast_data = forecast_data.copy()
-        self.weights = pd.DataFrame()  # to store combination weights
-        # Maps a fitted ComboSpec name to the unique_id of its output series so
-        # that parent specs can reference children by their unique_id.
+        self.weights = pd.DataFrame()
+        # Map each fitted specification to its output series identifier.
         self._combo_unique_ids: dict[str, str] = {}
-        # Maps every combo_label used so far to its configuration, so that two
-        # different fit configurations can never silently share the same label.
+        # Map each label to its configuration and reject conflicting reuse.
         self._combo_labels: dict[str, tuple] = {}
 
     def fit(
@@ -432,7 +428,7 @@ class ForecastCombo:
 
         ``sources`` may be a list of source names, a single ``ComboSpec``, or
         a list containing source names and ``ComboSpec`` objects. A
-        ``ComboSpec`` supplies the fitting parameters for its own node.
+        ``ComboSpec`` defines the fitting parameters for its node.
 
         Parameters
         ----------
@@ -482,7 +478,7 @@ class ForecastCombo:
         ValueError
             If an input is invalid or no combination can be fitted.
         """
-        # Variables apply to every fit path, including nested ComboSpecs.
+        # Apply variables to every fit path, including nested specifications.
         if isinstance(variables, str):
             variables = [variables]
         if not isinstance(variables, list):
@@ -509,7 +505,7 @@ class ForecastCombo:
             print_warning=print_warning,
         )
 
-        # --- Handle ComboSpec sources (hierarchical) ----------------------
+        # Handle a list that mixes source names and nested specifications.
         if isinstance(sources, list) and any(isinstance(s, ComboSpec) for s in sources):
             if not sources:
                 raise ValueError("sources must not be empty")
@@ -532,8 +528,7 @@ class ForecastCombo:
                 print_warning=print_warning,
             )
 
-        # --- Plain list[str] path (original behaviour) --------------------
-        # Validate sources
+        # Validate a plain list of source names.
         if not isinstance(sources, list):
             raise TypeError("sources must be a list of strings or a ComboSpec")
 
@@ -542,7 +537,7 @@ class ForecastCombo:
 
         _validate_nonempty_unique(sources, "sources")
 
-        # Normalise method to list
+        # Convert one method name to a list.
         if isinstance(method, str):
             method = [method]
         elif not isinstance(method, list):
@@ -556,26 +551,26 @@ class ForecastCombo:
         if invalid_methods:
             raise ValueError(f"Invalid method(s): {invalid_methods}. Supported methods: {self.supported_methods}")
 
-        # Validate that all sources exist in the data
+        # Check that every source exists in the data.
         available_sources = set(self.forecast_data.forecasts["unique_id"].unique())
         invalid_sources = set(sources) - available_sources
         if invalid_sources:
             raise ValueError(f"Invalid sources: {invalid_sources}. Available sources: {available_sources}")
 
-        # Validate that all variables exist in the data
+        # Check that every variable exists in the data.
         available_variables = set(self.forecast_data.forecasts["variable"].unique())
         invalid_variables = set(variables) - available_variables
         if invalid_variables:
             raise ValueError(f"Invalid variables: {invalid_variables}. Available variables: {available_variables}")
 
-        # filter forecast_data
+        # Restrict the copied data to the requested sources and variables.
         filtered_data = self.forecast_data.copy()
         filtered_data.filter(sources=sources, variables=variables)
 
         outturns = filtered_data.outturns.copy()
         forecasts = filtered_data.forecasts.copy()
 
-        # filter metric
+        # Keep the requested error metric.
         if metric in forecasts["metric"].unique():
             forecasts = forecasts[forecasts["metric"] == metric]
             outturns = outturns[outturns["metric"] == metric]
@@ -586,21 +581,15 @@ class ForecastCombo:
 
         outturns = outturns.sort_values("date")
 
-        # Frequency of the target being combined. Outturns may legitimately hold
-        # several frequencies, so it is taken from the forecasts, which a
-        # ForecastData instance guarantees to be single-frequency. Since
-        # 'frequency' is a merge key below, only outturns of this frequency are
-        # used for estimation.
+        # Use the single frequency supplied by the forecasts for the merge.
         freq = forecasts["frequency"].iloc[0]
 
-        # Merge forecasts and outturns
-        # Pre-select only needed columns to reduce memory footprint
+        # Select the columns needed for the forecast-outturn merge.
         merge_cols = ["date", "variable", "frequency", "metric"]
         forecast_cols = merge_cols + ["vintage_date", "target_minus_vintage", "unique_id", "value"]
         outturn_cols = merge_cols + ["vintage_date", "target_minus_vintage", "value"]
 
-        # "horizon" here is vintage-distance (the old "forecast_horizon" meaning),
-        # sourced from the derived "target_minus_vintage" column on both sides.
+        # Use horizon for the vintage distance derived from target_minus_vintage.
         forecasts_slim = forecasts[[c for c in forecast_cols if c in forecasts.columns]].rename(
             columns={
                 "vintage_date": "vintage_date_forecast",
@@ -623,7 +612,7 @@ class ForecastCombo:
             how="left",
         )
 
-        # Validate training period
+        # Resolve and check the training period.
         if training_start is not None:
             training_start = pd.to_datetime(training_start)
         else:
@@ -643,16 +632,16 @@ class ForecastCombo:
         if training_end > outturns["vintage_date"].max():
             raise ValueError("training_end can't be after the latest date in the data")
 
-        # Validate and convert period_filter if provided
+        # Validate and convert the period filter.
         if period_filter is not None:
-            # Convert single string to list
+            # Treat one period string as a one-item list.
             if isinstance(period_filter, str):
                 period_filter = [period_filter]
 
             if not isinstance(period_filter, (list, tuple, np.ndarray, pd.Index)):
                 raise TypeError("period_filter must be a list of pandas periods or strings")
 
-            # Convert strings to pd.Period objects
+            # Convert strings to periods at the data frequency.
             if len(period_filter) > 0:
                 data_freqstr = pd.Period(forecasts["date"].iloc[0], freq=freq).freqstr
                 converted_periods = []
@@ -676,7 +665,7 @@ class ForecastCombo:
                         raise ValueError(f"period_filter items must be strings or pd.Period objects, got {type(p)}")
                 period_filter = converted_periods
 
-        # Store results for each combination method and variable
+        # Collect weights and combined forecasts for each requested fit.
         training_vintages = forecasts["vintage_date"].unique()
         training_vintages = training_vintages[
             (training_vintages >= training_start) & (training_vintages <= training_end)
@@ -698,16 +687,14 @@ class ForecastCombo:
             print_warning=print_warning,
             label=label,
         )
-        # save internal attributes
+        # Store the combined forecasts from this fit.
         self._combined_forecasts = pd.DataFrame(list_combined_forecasts)
 
-        # Discard rows produced by failed fits before checking whether any
-        # usable combined forecasts remain.
+        # Remove failed rows before checking for usable forecasts.
         if not self._combined_forecasts.empty:
             self._combined_forecasts = self._combined_forecasts.dropna(subset=["value"])
 
-        # give an error if no combination have been fitted successfully
-        # (e.g. because there was no overlapping outturns/forecasts for the specified sources/variables)
+        # Reject a fit that produced no usable combined forecasts.
         if self._combined_forecasts.empty:
             raise ValueError(
                 "No combined forecasts were fitted successfully. "
@@ -735,8 +722,7 @@ class ForecastCombo:
             )
         self._combo_labels[combo_label] = config
 
-        # Configuration metadata, written with identical values to both the
-        # weights table and the combined-forecast table.
+        # Store the same fit metadata with weights and combined forecasts.
         combo_metadata = {
             "combo_sources": ", ".join(sources),
             "discount_param": discount_param,
@@ -744,46 +730,42 @@ class ForecastCombo:
             "period_filter": _period_filter_label(period_filter),
         }
 
-        # save weights dataset
+        # Add metadata to the weights table.
         df_weights = pd.DataFrame(list_weights)
         for column, value in combo_metadata.items():
             df_weights[column] = value
         df_weights["combo_label"] = combo_label
 
-        # add new identification cols
+        # Add identifiers to the combined forecasts.
         extra_id = ["type", "method"]
         self._combined_forecasts["type"] = "combo"
         self._combined_forecasts["combo_label"] = combo_label
 
         if automatic_labelling:
             for column, value in combo_metadata.items():
-                # Columns that do not apply to this fit (no window, no period
-                # filter) are omitted rather than declared as empty ids.
+                # Skip metadata with no value for this fit.
                 if value is None:
                     continue
                 extra_id.append(column)
                 self._combined_forecasts[column] = value
 
-        # add label to combined forecasts if provided
+        # Add the caller's label when one was supplied.
         if label is not None:
             self._combined_forecasts["combo"] = label
             df_weights["combo"] = label
             df_weights["model"] = df_weights["model"] + " (" + label + ")"
 
-            # Rename the source column to the label so that downstream
-            # ComboSpecs can reference this combo by name.
+            # Store the label as the source name for downstream specifications.
             self._combined_forecasts["source"] = label
 
-        # Write back to ForecastData using the forecaster-supplied information
-        # horizon ("forecast_horizon" required by ForecastData), computed
-        # per-row in _estimation_loop. The public-facing "_combined_forecasts"
-        # table keeps only "horizon" (vintage-distance) to avoid ambiguity.
+        # Add forecasts with the horizon column required by ForecastData, then
+        # keep the public table's shorter horizon name.
         forecasts_for_write = self._combined_forecasts.drop(columns=["combo_label", "combo"], errors="ignore").copy()
         forecasts_for_write["forecast_horizon"] = forecasts_for_write["forecast_horizon"].astype(int)
         self.forecast_data.add_forecasts(forecasts_for_write, extra_ids=extra_id, compute_levels=True)
         self._combined_forecasts = self._combined_forecasts.drop(columns=["forecast_horizon"])
 
-        # save weights
+        # Append this fit's weights to the accumulated table.
         self.weights = pd.concat([self.weights, df_weights], ignore_index=True)
         return self
 
@@ -803,7 +785,7 @@ class ForecastCombo:
         allow_partial_sources,
         print_warning,
     ) -> None:
-        """Validate fit options before any forecast data is mutated."""
+        """Check fit options before changing forecast data."""
         methods = [method] if isinstance(method, str) else method
         if not isinstance(methods, list):
             raise TypeError("method must be a string or list of strings")
@@ -839,7 +821,7 @@ class ForecastCombo:
     # ------------------------------------------------------------------
 
     def _fit_single_spec(self, spec: "ComboSpec", variables: list[str]) -> None:
-        """Fit one ComboSpec node (assumes dependencies are already fitted)."""
+        """Fit one specification after fitting its dependencies."""
         self.fit(
             sources=self._resolve_spec_sources(spec.sources),
             variables=variables,
@@ -868,7 +850,7 @@ class ForecastCombo:
         return resolved
 
     def _register_combo_unique_id(self, name: str) -> None:
-        """Record the forecast ``unique_id`` for a named combination."""
+        """Record the output identifier for a named combination."""
         forecasts = self.forecast_data.forecasts
         unique_ids = forecasts.loc[forecasts["source"] == name, "unique_id"].unique()
         if len(unique_ids) > 0:
@@ -876,7 +858,7 @@ class ForecastCombo:
 
     @contextmanager
     def _atomic_hierarchical_fit(self):
-        """Restore all mutable fit state if a hierarchy fails part-way through."""
+        """Restore mutable fit state when a hierarchical fit fails."""
         forecast_data = self.forecast_data.copy()
         weights = self.weights.copy()
         combo_unique_ids = self._combo_unique_ids.copy()
@@ -897,7 +879,7 @@ class ForecastCombo:
             raise
 
     def _fit_from_spec(self, spec: "ComboSpec", variables: list[str]) -> "ForecastCombo":
-        """Fit a root specification and its dependency nodes."""
+        """Fit a root specification and all of its dependencies."""
         raw_sources = set(self.forecast_data.forecasts["unique_id"].unique())
         nodes = spec.flatten_and_validate(raw_sources=raw_sources)
         with self._atomic_hierarchical_fit():
@@ -924,8 +906,7 @@ class ForecastCombo:
         print_warning: bool = True,
     ) -> "ForecastCombo":
         """Fit nested specifications and a mixed top-level source list."""
-        # Validate the full graph of nested specs together and fit each node
-        # exactly once (shared children are not re-fitted across roots).
+        # Validate the graph once so shared children receive one fit.
         raw_sources = set(self.forecast_data.forecasts["unique_id"].unique())
         spec_roots = [src for src in sources if isinstance(src, ComboSpec)]
         nodes = validate_spec_graph(spec_roots, raw_sources=raw_sources)
@@ -933,11 +914,10 @@ class ForecastCombo:
             for node in nodes:
                 self._fit_single_spec(node, variables)
 
-            # Resolve the top-level source names, using fitted combo unique_ids
-            # for nested specs and plain strings otherwise.
+            # Resolve nested specifications to their fitted source identifiers.
             resolved_names = self._resolve_spec_sources(sources)
 
-            # Now fit the top-level combination with resolved string names
+            # Fit the top-level combination with the resolved names.
             return self.fit(
                 sources=resolved_names,
                 variables=variables,

@@ -14,7 +14,7 @@ def dashboard_app(combo_data: ForecastCombo) -> App:
     Parameters
     ----------
     combo_data : ForecastCombo
-        A fitted ``ForecastCombo`` whose ``weights`` DataFrame is displayed.
+        A fitted ``ForecastCombo``. The app displays its ``weights`` DataFrame.
 
     Returns
     -------

@@ -1,6 +1,6 @@
 """Deterministic numerical tests for the fixed-weight combination methods.
 
-Each case uses hand-computable losses so the expected weights are exact
+Each case uses losses computed by hand, so the expected weights are exact
 closed-form values rather than properties of a random sample.
 """
 
@@ -15,8 +15,8 @@ from forecast_combo.combinations.static_combinations import average, least_squar
 def known_losses():
     """Errors of magnitude 1 for source 0 and 2 for source 1.
 
-    Gives MAE = (1, 2), MSE = (1, 4), RMSE = (1, 2) and, since both errors are
-    inside the Huber threshold, Huber loss = (0.5, 2).
+    This produces MAE = (1, 2), MSE = (1, 4), and RMSE = (1, 2). Both errors
+    fall inside the Huber threshold, so Huber loss = (0.5, 2).
     """
     y = np.zeros(4)
     X = np.column_stack([np.array([1.0, -1.0, 1.0, -1.0]), np.array([2.0, -2.0, 2.0, -2.0])])
@@ -33,7 +33,7 @@ def test_rmse_weights_are_inverse_rmse(known_losses):
     X, y = known_losses
     weights, std_errors = combos.rmse_weights(X, y, window_size=None, discount_param=1.0)
 
-    # a = (1/1, 1/2); weights = a / a.sum()
+    # Inverse RMSE factors are (1, 1/2); normalisation gives these weights.
     assert weights == pytest.approx([2 / 3, 1 / 3])
     assert weights.sum() == pytest.approx(1.0)
     assert np.all(np.isfinite(std_errors))
@@ -43,7 +43,7 @@ def test_mse_weights_are_inverse_mse(known_losses):
     X, y = known_losses
     weights, std_errors = combos.mse_weights(X, y, window_size=None, discount_param=1.0)
 
-    # a = (1/1, 1/4); weights = a / a.sum()
+    # Inverse MSE factors are (1, 1/4); normalisation gives these weights.
     assert weights == pytest.approx([0.8, 0.2])
     assert weights.sum() == pytest.approx(1.0)
     assert np.all(np.isfinite(std_errors))
@@ -53,7 +53,7 @@ def test_mae_weights_are_inverse_mae(known_losses):
     X, y = known_losses
     weights, std_errors = combos.mae_weights(X, y, window_size=None, discount_param=1.0)
 
-    # a = (1/1, 1/2); weights = a / a.sum()
+    # Inverse MAE factors are (1, 1/2); normalisation gives these weights.
     assert weights == pytest.approx([2 / 3, 1 / 3])
     assert weights.sum() == pytest.approx(1.0)
     assert np.all(np.isfinite(std_errors))
@@ -72,8 +72,8 @@ def test_huber_weights_are_inverse_huber_loss(known_losses):
     X, y = known_losses
     weights = combos.huber_weights(X, y, window_size=None)
 
-    # Both |error| values sit below delta = 1.345 * sigma, so the loss is
-    # quadratic: 0.5 * e^2 = (0.5, 2). a = (1/0.5, 1/2) = (2, 0.5).
+    # Both errors fall below delta = 1.345 * sigma, so the loss is quadratic:
+    # 0.5 * e^2 = (0.5, 2), with inverse factors (2, 0.5).
     assert weights == pytest.approx([0.8, 0.2])
     assert weights.sum() == pytest.approx(1.0)
 
@@ -89,10 +89,10 @@ def test_huber_weights_are_inverse_huber_loss(known_losses):
     ids=["rmse", "mse", "mae", "huber"],
 )
 def test_rolling_window_only_uses_the_final_observations(weight_function):
-    """Observations before the window must not influence the weights."""
+    """The trailing window excludes older observations from the weights."""
     y = np.zeros(6)
     recent = np.column_stack([np.array([1.0, -1.0, 1.0, -1.0]), np.array([2.0, -2.0, 2.0, -2.0])])
-    # Two early observations that reverse the ranking, then the recent block.
+    # Add two early observations that reverse the ranking before the recent block.
     early = np.array([[9.0, 0.5], [-9.0, -0.5]])
     X = np.vstack([early, recent])
 
@@ -197,7 +197,7 @@ def test_trailing_window_equal_to_sample_size_is_a_no_op(weight_function):
     ids=["least_squares", "constrained_least_squares", "rmse", "mse", "mae", "huber"],
 )
 def test_trailing_window_larger_than_sample_is_a_no_op(weight_function):
-    """A window larger than the sample must not raise and must use all data."""
+    """A window larger than the sample uses all observations."""
     y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     X = np.column_stack(
         [
@@ -227,7 +227,7 @@ def test_discount_param_rejects_boolean(weight_function, known_losses):
 def test_discounting_favours_the_source_with_smaller_recent_errors():
     """With discounting, recent accuracy must dominate older accuracy."""
     y = np.zeros(2)
-    # Source 0 is poor recently and good early; source 1 is the mirror image.
+    # Source 0 performs poorly recently; source 1 has the opposite pattern.
     X = np.column_stack([np.array([1.0, 3.0]), np.array([3.0, 1.0])])
 
     undiscounted, _ = combos.mse_weights(X, y, window_size=None, discount_param=1.0)
@@ -311,7 +311,7 @@ def test_unconstrained_least_squares_matches_normal_equations():
 
 
 def test_least_squares_standard_errors_remain_finite_for_near_collinear_sources():
-    """OLS uncertainty should use a stable covariance calculation."""
+    """OLS uncertainty uses a stable covariance calculation."""
     rng = np.random.default_rng(23)
     base = rng.normal(size=80)
     X = np.column_stack([base, base * (1 + 1e-8) + rng.normal(scale=1e-10, size=80)])

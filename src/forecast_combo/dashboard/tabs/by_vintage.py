@@ -13,7 +13,7 @@ _PLOT_FN = {"line": line_plot_by_vintage, "heatmap": heatmap_by_vintage, "bar": 
 
 
 def vintage_tab(input: Any, output: Any, session: Any, combo_df: pd.DataFrame) -> None:
-    """Register the render handlers for the "Across Vintage" tab.
+    """Register plot renderers for the "Across Vintage" tab.
 
     Parameters
     ----------

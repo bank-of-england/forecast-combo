@@ -1,4 +1,4 @@
-"""Weighting algorithms used to estimate forecast combination weights."""
+"""Methods for estimating forecast combination weights."""
 
 from .static_combinations import (
     average,

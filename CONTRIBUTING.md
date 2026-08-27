@@ -1,5 +1,5 @@
 # Contributor Guide
-### Initial Setup
+## Initial Setup
 
 1. **Fork and clone the repository**
    ```bash
@@ -7,12 +7,12 @@
    cd forecast-combo
    ```
 
-2. **Set up development environment**
+2. **Set up the development environment**
    ```bash
-   conda create --name forecast-combo 
+   conda create --name forecast-combo
    conda activate forecast-combo
    conda install pip
-   pip install -e .[dev] # Install package in editable mode with dev dependencies
+   pip install -e ".[dev]"  # Install the package with development dependencies.
    ```
 
 3. **Install pre-commit hooks**
@@ -41,7 +41,7 @@ Pre-commit does not build the documentation site or distribution package; run
 the commands in the [Documentation](#documentation) and [Code Style](#code-style)
 sections when you need to check those artefacts.
 
-4. **Verify installation**
+4. **Verify the installation**
    ```bash
    pytest
    ```
@@ -69,7 +69,7 @@ git checkout -b feature/your-feature-name
 git checkout main
 git pull origin main
 git checkout feature/your-feature-name
-git rebase main  # Or merge if you prefer
+   git rebase main  # Merge main instead when necessary.
 ```
 
 ### Commit your changes
@@ -77,7 +77,7 @@ git rebase main  # Or merge if you prefer
 ```bash
 git add .
 git commit -m "describe your changes"
-git push  # or git push origin feature/your-feature-name
+   git push  # Or specify the branch explicitly.
 ```
 
 ## Code Standards
@@ -87,22 +87,22 @@ git push  # or git push origin feature/your-feature-name
 We use **Ruff** for formatting and linting:
 
 ```bash
-# Format code
+# Format the code.
 ruff format .
 
-# Check for issues
+# Check for lint issues.
 ruff check .
 
-# Auto-fix issues where possible
+# Fix issues that Ruff can resolve.
 ruff check . --fix
 
-# Verify formatting without changing files
+# Check formatting without changing files.
 ruff format --check .
 
-# Build the package
+# Build the package.
 python -m build
 
-# Build the documentation
+# Build the documentation.
 zensical build
 ```
 
@@ -148,27 +148,27 @@ produces a diff, so generated API documentation cannot become stale silently.
 
 ### Before Submitting
 
-1. **Open an issue** to discuss the bug or feature you want to work on.
+1. **Open an issue** to discuss the bug or feature.
 
-2. **Use the issue number to create a branch; i.e. fix/#1-prior**
+2. **Use the issue number in the branch name; for example, `fix/1-prior`.**
 
 3. **Make your changes**
 
-4. **Add a test covering the new feature**
+4. **Add a test for the change.**
 
 
-5. **Format, document and test the code**
+5. **Format, document, and test the code.**
    ```bash
-   ruff format # format code
-   ruff check # format code
-   pytest # check that everything is working as intended
+   ruff format
+   ruff check .
+   pytest
    ```
 
-6. **Commit and push your changes**
+6. **Commit and push the changes.**
    ```bash
    git add .
    git commit -m "Fixes #1: Describe your changes"
    git push origin fix/#1-prior
    ```
 
-7. **Submit a pull request**
+7. **Submit a pull request.**

@@ -4,7 +4,7 @@ from importlib import import_module
 
 
 def require_optional_dependency(module_name: str, extra: str, feature: str):
-    """Import an optional dependency and explain how to install its feature."""
+    """Import an optional dependency or show which extra provides it."""
     try:
         return import_module(module_name)
     except ModuleNotFoundError as exc:

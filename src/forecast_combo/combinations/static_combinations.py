@@ -1,4 +1,4 @@
-"""Forecast combination weighting methods."""
+"""Estimate forecast combination weights with static methods."""
 
 import warnings
 
@@ -18,14 +18,14 @@ jax.config.update("jax_enable_x64", True)
 
 
 def _validate_forecast_matrix(X: np.ndarray, y: np.ndarray | None = None) -> None:
-    """Validate arrays used by the weighting functions."""
+    """Check the arrays required by a weighting method."""
     validate_forecast_matrix(X, y)
     if y is not None:
         validate_nonempty_sample(y)
 
 
 def average(X: np.ndarray) -> np.ndarray:
-    """Return equal weights for the sources in ``X``.
+    """Return one equal weight for each source in ``X``.
 
     Parameters
     ----------
@@ -38,12 +38,12 @@ def average(X: np.ndarray) -> np.ndarray:
         Weight ``1 / n_sources`` for each source.
     """
     _validate_forecast_matrix(X)
-    weights = np.ones(X.shape[1]) / X.shape[1]  # Equal weights for each source
+    weights = np.ones(X.shape[1]) / X.shape[1]
     return weights
 
 
 def _check_nonzero_loss(loss: np.ndarray, method_name: str) -> None:
-    """Validate losses before inverse-loss weighting."""
+    """Require finite, non-zero losses before inverse-loss weighting."""
     if not np.all(np.isfinite(loss)):
         raise ValueError(f"One or more sources have non-finite {method_name} loss due to numerical overflow.")
     if np.any(loss == 0):
@@ -56,7 +56,7 @@ def _check_nonzero_loss(loss: np.ndarray, method_name: str) -> None:
 
 
 def _inverse_loss_weights(loss: np.ndarray, method_name: str) -> np.ndarray:
-    """Return normalised weights from a loss array."""
+    """Convert positive losses into normalised inverse-loss weights."""
     _check_nonzero_loss(loss, method_name)
     scaled_inverse = loss.min() / loss
     weights = scaled_inverse / scaled_inverse.sum()
@@ -66,7 +66,7 @@ def _inverse_loss_weights(loss: np.ndarray, method_name: str) -> np.ndarray:
 
 
 def least_squares(X: np.ndarray, y: np.ndarray, window_size: int | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """Return least-squares weights and standard errors.
+    """Estimate least-squares weights and their standard errors.
 
     Parameters
     ----------
@@ -97,7 +97,7 @@ def least_squares(X: np.ndarray, y: np.ndarray, window_size: int | None = None) 
     if n == 0:
         raise ValueError("Cannot fit least squares: the estimation sample is empty.")
 
-    # Solve for weights using least squares (minimum-norm solution if rank deficient)
+    # Use the minimum-norm solution when the design lacks full rank.
     weights, _, rank, _ = np.linalg.lstsq(X, y, rcond=None)
 
     if rank < k:
@@ -114,11 +114,11 @@ def least_squares(X: np.ndarray, y: np.ndarray, window_size: int | None = None) 
         )
         return weights, np.full(k, np.nan)
 
-    # Residuals
+    # Estimate the residual variance.
     residuals = y - X @ weights
     sigma2 = (residuals @ residuals) / (n - k)
 
-    # Reconstruct the inverse Gram matrix from the SVD without forming X.T @ X.
+    # Use the SVD to form the covariance matrix without forming X.T @ X.
     _, singular_values, vh = np.linalg.svd(X, full_matrices=False)
     scaled_v = vh.T / singular_values
     covariance = scaled_v @ scaled_v.T
@@ -128,7 +128,7 @@ def least_squares(X: np.ndarray, y: np.ndarray, window_size: int | None = None) 
 
 
 def constrained_least_squares(X: np.ndarray, y: np.ndarray, window_size: int | None = None) -> np.ndarray:
-    """Return least-squares weights constrained to the unit simplex.
+    """Estimate least-squares weights on the unit simplex.
 
     Parameters
     ----------
@@ -155,11 +155,10 @@ def constrained_least_squares(X: np.ndarray, y: np.ndarray, window_size: int | N
     """
     _validate_forecast_matrix(X, y)
 
-    # Apply rolling window if specified
+    # Select the trailing estimation window.
     X, y = apply_window(X, y, window_size)
 
-    # Scale in two stages so variance calculation cannot overflow for large,
-    # finite targets while preserving the same least-squares objective.
+    # Scale twice to prevent overflow while preserving the least-squares objective.
     magnitude = np.max(np.abs(y))
     if magnitude == 0:
         raise ValueError("y has zero variance; cannot fit constrained least squares.")
@@ -171,7 +170,7 @@ def constrained_least_squares(X: np.ndarray, y: np.ndarray, window_size: int | N
     X = X / scaling_factor
     y = y / scaling_factor
 
-    # Convert to JAX arrays
+    # Convert inputs for JAX differentiation.
     X_jax = jnp.array(X)
     y_jax = jnp.array(y)
     n_sources = X.shape[1]
@@ -179,23 +178,23 @@ def constrained_least_squares(X: np.ndarray, y: np.ndarray, window_size: int | N
     def objective(w):
         return jnp.sum((y_jax - X_jax @ w) ** 2)
 
-    # Compute the gradient with JAX
+    # Differentiate the objective with JAX.
     grad_fn = jax.grad(objective)
 
-    # Wrappers for SciPy (convert JAX arrays to numpy)
+    # Convert JAX gradients for SciPy.
     def jac(w):
         return np.array(grad_fn(w))
 
-    # Initial guess: equal weights
+    # Start from equal weights.
     w0 = np.ones(n_sources) / n_sources
 
-    # Constraints: weights sum to 1
+    # Constrain the weights to sum to one.
     constraints = {"type": "eq", "fun": lambda w: np.sum(w) - 1}
 
-    # Bounds: weights >= 0
+    # Keep every weight non-negative.
     bounds = [(0, None) for _ in range(n_sources)]
 
-    # Solve with analytical derivatives
+    # Solve with the analytical gradient.
     result = minimize(objective, w0, method="SLSQP", jac=jac, bounds=bounds, constraints=constraints)
 
     if not result.success:
@@ -238,7 +237,7 @@ def rmse_weights(
     _validate_forecast_matrix(X, y)
     validate_discount_param(discount_param)
 
-    # Apply rolling window
+    # Select the trailing estimation window.
     X, y = apply_window(X, y, window_size)
 
     T = len(y)
@@ -250,17 +249,17 @@ def rmse_weights(
     N = errors.shape[0]
     sq_errors = errors**2
 
-    # RMSE per model
+    # Compute one discounted RMSE for each model.
     rmse = np.sqrt(np.mean(discount_array * sq_errors, axis=0))
     weights = _inverse_loss_weights(rmse, "RMSE")
     if N < 2:
         return weights, np.full(X.shape[1], np.nan)
 
-    # SE of RMSE — delta method: SE(RMSE) = std(e²) / (2√N · RMSE)
+    # Estimate RMSE uncertainty with the delta method.
     rmse_se = np.std(discount_array * sq_errors, axis=0, ddof=1) / (2 * np.sqrt(N) * rmse)
     var_rmse = rmse_se**2
 
-    # Standard errors of weights via Delta method
+    # Propagate RMSE uncertainty to the weights.
     w_se = delta_method(rmse, var_rmse)
 
     return weights, w_se
@@ -269,7 +268,7 @@ def rmse_weights(
 def mse_weights(
     X: np.ndarray, y: np.ndarray, window_size: int | None, discount_param: float = 1.0
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return inverse-MSE weights and standard errors.
+    """Estimate inverse-MSE weights and their standard errors.
 
     Parameters
     ----------
@@ -291,7 +290,7 @@ def mse_weights(
     _validate_forecast_matrix(X, y)
     validate_discount_param(discount_param)
 
-    # Apply rolling window
+    # Select the trailing estimation window.
     X, y = apply_window(X, y, window_size)
 
     T = len(y)
@@ -303,17 +302,17 @@ def mse_weights(
     N = errors.shape[0]
     sq_errors = errors**2
 
-    # Discounted MSE per model
+    # Compute one discounted MSE for each model.
     mse = np.mean(discount_array * sq_errors, axis=0)
     weights = _inverse_loss_weights(mse, "MSE")
     if N < 2:
         return weights, np.full(X.shape[1], np.nan)
 
-    # SE of MSE: std(e²) / √N
+    # Estimate MSE uncertainty.
     mse_se = np.std(discount_array * sq_errors, axis=0, ddof=1) / np.sqrt(N)
     var_mse = mse_se**2
 
-    # Standard errors of weights via Delta method
+    # Propagate MSE uncertainty to the weights.
     w_se = delta_method(mse, var_mse)
 
     return weights, w_se
@@ -322,7 +321,7 @@ def mse_weights(
 def mae_weights(
     X: np.ndarray, y: np.ndarray, window_size: int | None, discount_param: float = 1.0
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return inverse-MAE weights and standard errors.
+    """Estimate inverse-MAE weights and their standard errors.
 
     Parameters
     ----------
@@ -343,19 +342,18 @@ def mae_weights(
     _validate_forecast_matrix(X, y)
     validate_discount_param(discount_param)
 
-    # Apply rolling window
+    # Select the trailing estimation window.
     X, y = apply_window(X, y, window_size)
 
     T = len(y)
     discount = discount_param ** np.arange(T - 1, -1, -1)
     discount_array = np.repeat(discount.reshape(-1, 1), X.shape[1], axis=1)
 
-    # Absolute errors
-
+    # Compute absolute forecast errors.
     abs_errors = np.abs(y.reshape(-1, 1) - X)
     N = abs_errors.shape[0]
 
-    # Discounted MAE per model
+    # Compute one discounted MAE for each model.
     dmae = np.mean(discount_array * abs_errors, axis=0)
     weights = _inverse_loss_weights(dmae, "MAE")
     if N < 2:
@@ -364,14 +362,14 @@ def mae_weights(
     mae_se = np.std(discount_array * abs_errors, axis=0, ddof=1) / np.sqrt(N)
     var_mae = mae_se**2
 
-    # Standard errors of weights via Delta method
+    # Propagate MAE uncertainty to the weights.
     w_se = delta_method(dmae, var_mae)
 
     return weights, w_se
 
 
 def huber_weights(X: np.ndarray, y: np.ndarray, window_size: int | None) -> np.ndarray:
-    """Return inverse-Huber-loss weights.
+    """Estimate weights from the inverse Huber loss.
 
     Parameters
     ----------
@@ -394,7 +392,7 @@ def huber_weights(X: np.ndarray, y: np.ndarray, window_size: int | None) -> np.n
     """
     _validate_forecast_matrix(X, y)
 
-    # Apply rolling window
+    # Select the trailing estimation window.
     X, y = apply_window(X, y, window_size)
 
     if len(y) < 2:
@@ -404,11 +402,11 @@ def huber_weights(X: np.ndarray, y: np.ndarray, window_size: int | None) -> np.n
         errors = y.reshape(-1, 1) - X
         abs_err = np.abs(errors)
 
-        # Robust scale estimate (standard deviation of residuals)
+        # Estimate residual scale with the sample standard deviation.
         sigma = errors.std(axis=0, ddof=1)
         delta = 1.345 * sigma
 
-        # Huber loss
+        # Apply the quadratic and linear Huber branches.
         quad = 0.5 * errors**2
         lin = delta * (abs_err - 0.5 * delta)
         huber = np.where(abs_err <= delta, quad, lin).mean(axis=0)
@@ -418,7 +416,7 @@ def huber_weights(X: np.ndarray, y: np.ndarray, window_size: int | None) -> np.n
 
 
 def delta_method(rmse: np.ndarray, var_rmse: np.ndarray) -> np.ndarray:
-    """Return standard errors for inverse-RMSE weights.
+    """Estimate standard errors for inverse-RMSE weights.
 
     Parameters
     ----------

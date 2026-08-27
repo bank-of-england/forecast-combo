@@ -93,7 +93,7 @@ def heatmap_by_vintage(
     if y_axis not in ["model", "method", "variable"]:
         raise ValueError("y_axis must be 'model', 'method', or 'variable'")
 
-    # Apply filters
+    # Filter the plotting data.
     df_filtered = prepare_combo_data(weights_df, combo_label)
     df_filtered = filter_plot_data(
         df_filtered,
@@ -104,7 +104,7 @@ def heatmap_by_vintage(
     )
     validate_frequency_column(df_filtered)
 
-    # Determine faceting dimensions (all dims except y_axis, plus horizon if specified)
+    # Use every dimension except y_axis, and add horizon when requested.
     facet_dims = facet_dimensions(df_filtered, y_axis)
     if horizon is not None:
         facet_dims = ["horizon"] + facet_dims
@@ -114,7 +114,7 @@ def heatmap_by_vintage(
     def render_facet(ax, df_subset, facet_combo, row, col, n_rows, n_cols):
         df_subset = df_subset.sort_values("vintage_date")
 
-        # Pivot: Y-axis is y_axis, X-axis is vintage_date
+        # Arrange values with y_axis on the rows and vintage_date on the columns.
         pivot_data = df_subset.pivot_table(values="weight", index=y_axis, columns="vintage_date", aggfunc="mean")
 
         if pivot_data.empty:
@@ -132,24 +132,24 @@ def heatmap_by_vintage(
         ax.set_xticklabels(pivot_data.columns, fontsize=8)
         ax.set_yticklabels(pivot_data.index, fontsize=8)
 
-        # Only show x-axis labels on bottom row
+        # Show x-axis labels on the bottom row only.
         if row < n_rows - 1:
             ax.set_xticklabels([])
         else:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 
-        # Only show y-axis labels on leftmost column
+        # Show y-axis labels in the leftmost column only.
         if col > 0:
             ax.set_yticklabels([])
 
         title = facet_title(facet_dims, facet_combo, df_subset)
         ax.set_title(title, fontsize=11)
 
-        # Only show x-axis label on bottom row
+        # Label the x-axis on the bottom row only.
         if row == n_rows - 1:
             ax.set_xlabel("Vintage date", fontsize=9)
 
-        # Only show y-axis label on leftmost column
+        # Label the y-axis in the leftmost column only.
         if col == 0:
             ax.set_ylabel(y_axis.capitalize(), fontsize=9)
 
@@ -208,17 +208,17 @@ def heatmap_by_horizon(
     if y_axis not in ["model", "method", "variable"]:
         raise ValueError("y_axis must be 'model', 'method', or 'variable'")
 
-    # Apply filters
+    # Filter the plotting data.
     df_filtered = prepare_combo_data(weights_df, combo_label)
     df_filtered = filter_plot_data(df_filtered, model=model, method=method, variable=variable)
 
-    # Determine faceting dimensions (all dims except y_axis)
+    # Use every dimension except y_axis for the facets.
     facet_dims = facet_dimensions(df_filtered, y_axis)
 
     colour_mappable = _shared_colour_mappable(df_filtered["weight"])
 
     def render_facet(ax, df_subset, facet_combo, row, col, n_rows, n_cols):
-        # Pivot: Y-axis is y_axis, X-axis is horizon
+        # Arrange values with y_axis on the rows and horizon on the columns.
         pivot_data = df_subset.pivot_table(values="weight", index=y_axis, columns="horizon", aggfunc="mean")
 
         if pivot_data.empty:
@@ -233,24 +233,24 @@ def heatmap_by_horizon(
         ax.set_xticklabels(pivot_data.columns, fontsize=8)
         ax.set_yticklabels(pivot_data.index, fontsize=8)
 
-        # Only show x-axis labels on bottom row
+        # Show x-axis labels on the bottom row only.
         if row < n_rows - 1:
             ax.set_xticklabels([])
         else:
             ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 
-        # Only show y-axis labels on leftmost column
+        # Show y-axis labels in the leftmost column only.
         if col > 0:
             ax.set_yticklabels([])
 
         title = facet_title(facet_dims, facet_combo, df_subset)
         ax.set_title(title, fontsize=11)
 
-        # Only show x-axis label on bottom row
+        # Label the x-axis on the bottom row only.
         if row == n_rows - 1:
             ax.set_xlabel("Forecast horizon", fontsize=9)
 
-        # Only show y-axis label on leftmost column
+        # Label the y-axis in the leftmost column only.
         if col == 0:
             ax.set_ylabel(y_axis.capitalize(), fontsize=9)
 
@@ -258,7 +258,7 @@ def heatmap_by_horizon(
         df_filtered,
         facet_dims,
         render_facet,
-        # Increase height to accommodate the colour bar at the bottom
+        # Leave room for the colour bar at the bottom.
         figsize=lambda n_rows, n_cols: (5 * n_cols, 4 * n_rows + 1.5),
         hide_unused_axes=lambda ax: ax.axis("off"),
     )

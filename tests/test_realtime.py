@@ -1,8 +1,7 @@
 """
 Tests for real-time usage of ForecastCombo.
 
-These cover the behaviour required when the combination is run over a real-time
-panel, where
+These tests cover a real-time panel with
 
 * the outturns hold several frequencies (a quarterly target alongside monthly
   indicators), while the forecasts are single-frequency,
@@ -22,12 +21,10 @@ OUTTURN_QUARTERS = pd.period_range("2015Q1", "2024Q4", freq="Q")
 OUTTURN_MONTHS = pd.period_range("2014-01", "2024-12", freq="M")
 FORECAST_QUARTERS = pd.period_range("2018Q1", "2024Q4", freq="Q")
 
-# Two biased sources, so that the combination weights are not degenerate.
+# Use two biased sources so the weights are not degenerate.
 BIASES = {"model_a": 0.4, "model_b": -0.2}
 
-# Days after the start of the quarter at which forecasts are produced. The
-# second vintage is more accurate, which lets us check that the latest vintage
-# is the one used for a given target period.
+# Produce forecasts at two offsets. The later offset has the smaller error.
 VINTAGE_OFFSETS = {15: 1.0, 45: 0.5}
 
 
@@ -60,7 +57,7 @@ def _build_realtime_data(convention: str = "end") -> fe.ForecastData:
     quarterly_outturns = pd.DataFrame(
         {
             "date": _stamp(OUTTURN_QUARTERS, convention),
-            # released 30 days into the following quarter
+            # Release the quarterly outturn 30 days into the following quarter.
             "vintage_date": (OUTTURN_QUARTERS + 1).to_timestamp(how="start") + pd.Timedelta(days=30),
             "variable": "quarterly_a",
             "frequency": "Q",
@@ -109,10 +106,10 @@ def _fit(convention: str = "end", method: str = "average") -> ForecastCombo:
 
 
 def test_frequency_is_taken_from_the_forecasts_not_the_outturns():
-    """A quarterly combination must not inherit the frequency of monthly outturns."""
+    """A quarterly combination uses the forecast frequency."""
     data = _build_realtime_data()
 
-    # sanity check on the fixture: the first outturn row is monthly
+    # Confirm that the fixture starts with a monthly outturn.
     assert data.outturns["frequency"].iloc[0] == "M"
     assert set(data.outturns["frequency"].unique()) == {"M", "Q"}
 
@@ -130,8 +127,7 @@ def test_frequency_is_taken_from_the_forecasts_not_the_outturns():
     assert set(combo._combined_forecasts["frequency"].unique()) == {"Q"}
     assert set(combo.weights["frequency"].unique()) == {"Q"}
 
-    # the combined forecasts can be written back into the (quarterly) container,
-    # which only accepts forecasts of a single frequency
+    # The output container accepts one frequency, so the result must stay quarterly.
     assert set(combo.forecast_data.forecasts["frequency"].unique()) == {"Q"}
 
 
@@ -144,14 +140,13 @@ def test_combined_forecast_dates_match_the_targeted_period():
 
     assert combined["date"].dt.normalize().equals(expected)
 
-    # forecasts are produced at (almost) every vintage, not only at those whose
-    # vintage date happens to fall on a period boundary
+    # Forecasts use nearly every vintage, including dates between period boundaries.
     n_vintages = len(FORECAST_QUARTERS) * len(VINTAGE_OFFSETS)
     assert combined["vintage_date"].nunique() >= n_vintages - 3
 
 
 def test_latest_vintage_is_used_when_a_target_is_forecast_repeatedly():
-    """Successive forecasts of the same target must not be averaged together."""
+    """Successive forecasts of the same target use the latest vintage."""
     combined = _fit(method="average")._combined_forecasts
 
     # 2019-02-15 is the second vintage of 2019Q1; 2019Q1 has already been

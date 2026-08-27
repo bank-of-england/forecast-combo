@@ -1,5 +1,4 @@
-# Select the non-interactive backend before pyplot is imported, so the choice
-# is guaranteed to take effect on headless machines.
+# Select a non-interactive backend before importing pyplot.
 import matplotlib
 
 matplotlib.use("Agg")
@@ -66,7 +65,7 @@ def test_multi_facet_layout_matches_grid_formula_with_unused_axes():
         expected_cols = int(np.ceil(np.sqrt(n_plots / 2)))
         expected_rows = int(np.ceil(n_plots / expected_cols))
         assert axes.shape == (expected_rows, expected_cols)
-        # 3 plots in a 2x2 grid leave exactly one axis unused (hidden by default).
+        # Three plots in a 2x2 grid leave one hidden axis.
         hidden = [ax for ax in axes.flat if not ax.get_visible()]
         assert len(hidden) == 1
     finally:
@@ -136,7 +135,7 @@ def test_custom_hide_unused_axes_callback_is_used_instead_of_default():
     )
     try:
         assert len(turned_off) == 1
-        # The custom callback was used instead of the default set_visible(False).
+        # The custom callback leaves every axis visible.
         assert all(ax.get_visible() for ax in axes.flat)
     finally:
         plt.close(fig)

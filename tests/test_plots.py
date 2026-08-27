@@ -1,5 +1,4 @@
-# Select the non-interactive backend before pyplot is imported, so the choice
-# is guaranteed to take effect on headless machines.
+# Select a non-interactive backend before importing pyplot.
 import matplotlib
 
 matplotlib.use("Agg")
@@ -69,13 +68,8 @@ def combo_df(fer_data):
     return pd.DataFrame(combo.weights)
 
 
-# ===========================================================================
-# line_plot_by_horizon
-# ===========================================================================
-
-
 def test_line_plot_by_horizon_y_axis_model(combo_df):
-    """y_axis='model': faceted grid, lines coloured by model."""
+    """The model view draws a faceted line plot."""
     fig, axes = line_plot_by_horizon(combo_df, y_axis="model")
     assert isinstance(fig, plt.Figure)
     assert isinstance(axes, np.ndarray)
@@ -83,7 +77,7 @@ def test_line_plot_by_horizon_y_axis_model(combo_df):
 
 
 def test_line_plot_by_horizon_y_axis_method(combo_df):
-    """y_axis='method': faceted grid, lines coloured by method."""
+    """The method view draws a faceted line plot."""
     fig, axes = line_plot_by_horizon(combo_df, y_axis="method")
     assert isinstance(fig, plt.Figure)
     assert isinstance(axes, np.ndarray)
@@ -91,7 +85,7 @@ def test_line_plot_by_horizon_y_axis_method(combo_df):
 
 
 def test_line_plot_by_horizon_y_axis_variable(combo_df):
-    """y_axis='variable': faceted grid, lines coloured by variable."""
+    """The variable view draws a faceted line plot."""
     fig, axes = line_plot_by_horizon(combo_df, y_axis="variable")
     assert isinstance(fig, plt.Figure)
     assert isinstance(axes, np.ndarray)
@@ -99,7 +93,7 @@ def test_line_plot_by_horizon_y_axis_variable(combo_df):
 
 
 def test_line_plot_by_horizon_with_filters(combo_df):
-    """Apply filters to limit data."""
+    """The horizon plot applies dimension filters."""
     fig, axes = line_plot_by_horizon(combo_df, y_axis="model", method=["rmse"])
     assert isinstance(fig, plt.Figure)
     plt.close(fig)
@@ -167,8 +161,8 @@ def test_repeated_combo_fits_are_not_merged_in_plot():
     """Plotting accumulated weights must preserve each fitted combination.
 
     ``model_a`` has weight 1/2 when two sources are averaged and weight 1/3
-    when three sources are averaged. The plot must not replace those fitted
-    values with their average, 5/12.
+    when three sources are averaged. The plot preserves those fitted values
+    instead of replacing them with their average, 5/12.
     """
     import forecast_evaluation as fe
 
@@ -246,7 +240,7 @@ def test_repeated_combo_fits_are_not_merged_in_plot():
 
 
 def test_reused_label_for_a_different_configuration_raises():
-    """A user-supplied label must not be reused for a different fit configuration."""
+    """Reusing a label for a different fit configuration raises an error."""
     import forecast_evaluation as fe
 
     date = pd.Timestamp("2025-03-31")
@@ -431,13 +425,8 @@ def test_line_plot_uses_matplotlib_default_colour_cycle(minimal_weights):
         plt.close(fig)
 
 
-# ===========================================================================
-# line_plot_by_vintage
-# ===========================================================================
-
-
 def test_line_plot_by_vintage_y_axis_model(combo_df):
-    """y_axis='model': faceted grid, lines coloured by model."""
+    """The model view draws a faceted vintage plot."""
     fig, axes = line_plot_by_vintage(combo_df, y_axis="model")
     assert isinstance(fig, plt.Figure)
     assert isinstance(axes, np.ndarray)
@@ -445,7 +434,7 @@ def test_line_plot_by_vintage_y_axis_model(combo_df):
 
 
 def test_line_plot_by_vintage_y_axis_method(combo_df):
-    """y_axis='method': faceted grid, lines coloured by method."""
+    """The method view draws a faceted vintage plot."""
     fig, axes = line_plot_by_vintage(combo_df, y_axis="method")
     assert isinstance(fig, plt.Figure)
     assert isinstance(axes, np.ndarray)
@@ -453,7 +442,7 @@ def test_line_plot_by_vintage_y_axis_method(combo_df):
 
 
 def test_line_plot_by_vintage_y_axis_variable(combo_df):
-    """y_axis='variable': faceted grid, lines coloured by variable."""
+    """The variable view draws a faceted vintage plot."""
     fig, axes = line_plot_by_vintage(combo_df, y_axis="variable")
     assert isinstance(fig, plt.Figure)
     assert isinstance(axes, np.ndarray)
@@ -461,7 +450,7 @@ def test_line_plot_by_vintage_y_axis_variable(combo_df):
 
 
 def test_line_plot_by_vintage_with_filters(combo_df):
-    """Apply filters to limit data."""
+    """The vintage plot applies dimension filters."""
     fig, axes = line_plot_by_vintage(combo_df, y_axis="model", method=["rmse"])
     assert isinstance(fig, plt.Figure)
     plt.close(fig)
@@ -470,11 +459,6 @@ def test_line_plot_by_vintage_with_filters(combo_df):
 def test_line_plot_by_vintage_invalid_y_axis(combo_df):
     with pytest.raises(ValueError, match="y_axis must be"):
         line_plot_by_vintage(combo_df, y_axis="horizon")
-
-
-# ===========================================================================
-# heatmap_by_vintage
-# ===========================================================================
 
 
 def test_heatmap_by_vintage_y_axis_model(combo_df):
@@ -534,11 +518,6 @@ def test_heatmap_uses_shared_colour_limits_across_facets(plot_func):
         assert colourbar.mappable.get_clim() == pytest.approx((1.0, 200.0))
     finally:
         plt.close(fig)
-
-
-# ===========================================================================
-# heatmap_by_horizon
-# ===========================================================================
 
 
 def test_heatmap_by_horizon_y_axis_model(combo_df):
@@ -616,11 +595,6 @@ def test_heatmap_is_compatible_with_shiny_plot_rendering(plot_func):
         plt.close(fig)
 
 
-# ===========================================================================
-# bar_plot_by_horizon
-# ===========================================================================
-
-
 def test_bar_plot_by_horizon_y_axis_model(combo_df):
     fig, axes = bar_plot_by_horizon(combo_df, y_axis="model")
     assert isinstance(fig, plt.Figure)
@@ -653,11 +627,6 @@ def test_bar_plot_by_horizon_invalid_y_axis(combo_df):
         bar_plot_by_horizon(combo_df, y_axis="horizon")
 
 
-# ===========================================================================
-# bar_plot_by_vintage
-# ===========================================================================
-
-
 def test_bar_plot_by_vintage_y_axis_model(combo_df):
     fig, axes = bar_plot_by_vintage(combo_df, y_axis="model")
     assert isinstance(fig, plt.Figure)
@@ -688,11 +657,6 @@ def test_bar_plot_by_vintage_with_filters(combo_df):
 def test_bar_plot_by_vintage_invalid_y_axis(combo_df):
     with pytest.raises(ValueError, match="y_axis must be"):
         bar_plot_by_vintage(combo_df, y_axis="horizon")
-
-
-# ===========================================================================
-# Top-level fc.* access
-# ===========================================================================
 
 
 def test_top_level_imports():
@@ -738,11 +702,6 @@ def test_top_level_heatmap_by_horizon(combo_df):
     fig, axes = fc.heatmap_by_horizon(combo_df, y_axis="model")
     assert isinstance(fig, plt.Figure)
     plt.close(fig)
-
-
-# ===========================================================================
-# Unconstrained (possibly negative) weights must not be clipped or hidden
-# ===========================================================================
 
 
 @pytest.fixture
@@ -885,7 +844,7 @@ def test_bar_plot_groups_negative_weights(negative_weights_df, plot_func):
 
 @pytest.mark.parametrize("plot_func", [bar_plot_by_vintage, bar_plot_by_horizon])
 def test_bar_plot_groups_incomplete_model_weights(negative_weights_df, plot_func):
-    """A filtered or non-simplex model set must not be presented as a total."""
+    """A filtered or non-simplex model set appears as grouped bars."""
     df = negative_weights_df.copy()
     df["weight"] = df["weight"].abs() / 2
 

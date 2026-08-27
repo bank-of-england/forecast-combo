@@ -7,31 +7,31 @@ A Python package for combining forecasts.
 
 Python 3.10 or newer is required.
 
-#### Installing from PyPI
+### Install from PyPI
 ```sh
 pip install forecast-combo[dashboard]
-# Use pip install forecast-combo if you do not need dashboard or plotting support.
+# Omit the extra when you need only the core package.
 ```
 
-#### Installing the development version
+### Install the development version
 ```sh
 git clone https://github.com/bank-of-england/forecast-combo.git
 cd forecast-combo
 pip install -e .
 ```
 
-## Quick demo
+## Quick Start
 ```python
 import forecast_evaluation as fe
 import forecast_combo as fc
 
-# Load forecast data
+# Load the FER dataset.
 forecast_data = fe.ForecastData(load_fer=True)
 
-# Initialise ForecastCombo
+# Create the combiner.
 combo = fc.ForecastCombo(forecast_data=forecast_data)
 
-# Fit the combination models
+# Fit two combination methods.
 combo.fit(
     sources=["mpr", "baseline ar(p) model"],
     variables=["gdpkp", "cpisa"],
@@ -39,6 +39,6 @@ combo.fit(
     training_start="2020-01-01",
 )
 
-# Launch the forecast evaluation dashboard
+# Start the forecast evaluation dashboard.
 combo.run_forecast_dashboard()
 ```

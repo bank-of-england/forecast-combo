@@ -1,23 +1,28 @@
 # Forecast Combination Toolkit
 
-A Python package for combining forecasts from multiple sources, developed at the Bank of England. It builds on the forecast evaluation package developed by the Bank to evaluate Bank of England's macroeconomic forecasts.
+A Python package for combining forecasts from multiple sources. The project is
+developed at the Bank of England and builds on its forecast evaluation package.
 
 ---
 
 ## Overview
 
-The `forecast-combo` package provides a flexible framework for **combining forecasts** produced by different models into a single, more accurate composite forecast. It supports a range of combination methods — from simple averaging to optimisation-based approaches — and includes interactive dashboards for evaluating and comparing combination weights.
+The `forecast-combo` package combines forecasts from different models into one
+forecast. It supports methods from simple averaging to constrained optimisation,
+and it includes interactive dashboards for comparing combination weights.
 
-The package is designed to work with the Bank of England's `forecast_evaluation` and `forecast_realtime` ecosystems, making it easy to go from raw model outputs to combined forecasts and evaluation in a unified workflow.
+The package works with the Bank of England's `forecast_evaluation` and
+`forecast_realtime` ecosystems. The workflow runs from model outputs to combined
+forecasts and evaluation.
 
 ### Key features
 
-- **Multiple combination methods** — average, RMSE, MSE, MAE, Huber, OLS, and constrained least squares
-- **Rolling windows & discounting** — time-varying weight estimation with configurable window sizes and exponential discount factors
-- **Hierarchical combinations** — multi-stage combination pipelines where intermediate combos feed into higher-level combos
-- **Period filtering** — exclude specific time periods (e.g. COVID) from the training sample
-- **Interactive dashboards** — Shiny-based combo dashboard and forecast evaluation dashboard
-- **Visualisations** — line plots, heatmaps, and bar charts of combination weights.
+- **Combination methods** — average, RMSE, MSE, MAE, Huber, OLS, and constrained least squares
+- **Rolling windows and discounting** — estimate weights with a trailing window and exponential discount factors
+- **Hierarchical combinations** — pass intermediate combinations into later stages
+- **Period filtering** — exclude selected periods, such as the COVID pandemic, from training
+- **Interactive dashboards** — inspect combination weights with Shiny and forecast evaluation dashboards
+- **Visualisations** — compare weights with line plots, heatmaps, and bar charts
 
 ---
 
@@ -95,13 +100,13 @@ pip install "forecast-combo[dashboard]"
 import forecast_evaluation as fe
 import forecast_combo as fc
 
-# Load forecast data
+# Load the FER dataset.
 forecast_data = fe.ForecastData(load_fer=True)
 
-# Initialise ForecastCombo
+# Create the combiner.
 combo = fc.ForecastCombo(forecast_data=forecast_data)
 
-# Fit combination models
+# Fit two combination methods.
 combo.fit(
     sources=["mpr", "bvar unconditional"],
     variables=["gdpkp", "cpisa"],
@@ -109,16 +114,16 @@ combo.fit(
     training_start="2016-01-01",
 )
 
-# Launch the forecast evaluation dashboard (this blocks until stopped)
+# Start the forecast evaluation dashboard; this call blocks until the server stops.
 combo.run_forecast_dashboard()
 ```
 
 The repository example script runs the fitting and plotting workflow without
-starting a blocking dashboard:
+starting a dashboard:
 
 ```bash
-conda activate ma-forecast-combo
-python examples/examples.py
+conda activate forecast-combo
+python examples/simple_combo.py
 ```
 
 ---

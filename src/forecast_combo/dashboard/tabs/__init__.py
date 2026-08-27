@@ -1,1 +1,1 @@
-"""Server handlers for the dashboard tabs."""
+"""Server handlers for dashboard tabs."""

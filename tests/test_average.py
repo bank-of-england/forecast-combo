@@ -1,6 +1,4 @@
-"""
-Tests for average weighting method in ForecastCombo.
-"""
+"""Test average weighting in ``ForecastCombo``."""
 
 import numpy as np
 import pytest
@@ -13,14 +11,14 @@ def average_fit(fer_data):
     """Fit an equal-weight combination on the penultimate vintage."""
     forecast_data = fer_data.copy()
 
-    # Initialise ForecastCombo with multiple sources and variables
+    # Create a combiner with multiple sources and variables.
     combo = fc.ForecastCombo(
         forecast_data=forecast_data,
     )
 
     penultimate_vintage = sorted(forecast_data.forecasts["vintage_date"].unique())[-2]
 
-    # Fit the combination model with training period
+    # Fit one training vintage.
     combo.fit(
         sources=["mpr", "baseline ar(p) model"],
         variables=["cpisa"],
@@ -47,7 +45,7 @@ def test_average_weights_gives_average_forecasts(average_fit, horizon):
         & (forecasts["vintage_date"] == penultimate_vintage)
     ]
 
-    # Align the three series on 'date' so the comparison cannot depend on row order.
+    # Align all series by date; row order then has no effect on the comparison.
     columns = ["date", "value"]
     average = selection[selection["source"] == "average"][columns].set_index("date")["value"]
     source1 = selection[selection["source"] == "mpr"][columns].set_index("date")["value"]

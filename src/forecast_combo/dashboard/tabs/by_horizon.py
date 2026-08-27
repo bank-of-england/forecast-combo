@@ -13,7 +13,7 @@ _PLOT_FN = {"line": line_plot_by_horizon, "heatmap": heatmap_by_horizon, "bar": 
 
 
 def horizon_tab(input: Any, output: Any, session: Any, combo_df: pd.DataFrame) -> None:
-    """Register the render handlers for the "Across Horizon" tab.
+    """Register plot renderers for the "Across Horizon" tab.
 
     Parameters
     ----------

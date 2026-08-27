@@ -61,7 +61,7 @@ dev = [
     "pre_commit",
     "pydoclint",
     "pytest",
-    "pytest-xdist", # to run tests in parallel with pytest -n auto
+    "pytest-xdist", # Run tests in parallel with pytest -n auto.
     "pytest-cov",
     "ruff",
     "build",
@@ -83,7 +83,7 @@ line-length = 120
 target-version = "py310"
 
 [tool.ruff.lint]
-# Enable specific rules
+# Select Ruff rule families.
 select = [
     "E",  # pycodestyle
     "F",  # pyflakes
@@ -91,15 +91,15 @@ select = [
     "UP", # pyupgrade
 ]
 
-# Ignore specific rules
+# Exclude rules that do not fit this project.
 ignore = [
     "D100", # Missing docstring in public module
-    "D104", # Missing docstring in public package,
+    "D104", # Ignore missing docstrings in public packages.
     "D213",
     "D211"
 ]
 
-# Exclude files and directories
+# Exclude generated and build directories.
 exclude = [
     ".git",
     ".ruff_cache",
@@ -109,7 +109,7 @@ exclude = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # Ignore unused imports in __init__.py files
+"__init__.py" = ["F401"]  # Allow re-exports from package initialisers.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

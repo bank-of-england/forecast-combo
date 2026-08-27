@@ -1,6 +1,7 @@
 # Combination Methods
 
-This section describes the methods available for combining forecasts. All methods estimate a vector of **weights** `w = (w_1, ..., w_m)` that are applied to `m` model forecasts to produce a single combined forecast. The combined forecast is computed as:
+Each method estimates a vector of **weights** `w = (w_1, ..., w_m)` for `m`
+model forecasts. The weighted forecasts produce one combined forecast:
 
 ```python
 import numpy as np
@@ -10,7 +11,7 @@ weights = np.array([0.4, 0.6])
 combined_forecast = X_forecast.dot(weights)
 ```
 
-1. Each model's forecast is multiplied by its weight and summed.
+Each model forecast is multiplied by its weight, and the products are summed.
 
 ---
 
@@ -39,18 +40,8 @@ X = np.array([[1.0, 1.2], [1.1, 1.0]])
 weights = average(X)
 ```
 
-The simplest combination uses equal weights for all models:
-
-```python
-import numpy as np
-
-from forecast_combo.combinations import average
-
-X = np.array([[1.0, 1.2], [1.1, 1.0]])
-weights = average(X)
-```
-
-If there are 3 models, each gets weight `1/3`.
+The method assigns every model the same weight. With three models, each weight
+equals `1/3`.
 
 ---
 
@@ -60,7 +51,9 @@ If there are 3 models, each gets weight `1/3`.
 method = "rmse"
 ```
 
-Weights are inversely proportional to each model's root mean squared error over the training sample. Models with smaller errors get higher weights.
+The method assigns weights in inverse proportion to each model's root mean
+squared error over the training sample. Models with smaller errors receive
+higher weights.
 
 ```python
 import numpy as np
@@ -72,11 +65,12 @@ y = np.array([1.0, 1.0, 1.0])
 weights, standard_errors = rmse_weights(X, y, window_size=None, discount_param=0.9)
 ```
 
-The implementation applies the discount factor `lambda^(T-1-t)`, computes each
-model's discounted RMSE, then normalises the inverse losses so the weights sum
-to one. It returns both weights and delta-method standard errors.
+The implementation applies the discount factor `lambda^(T-1-t)`, computes a
+discounted RMSE for each model, and normalises the inverse losses. The weights
+sum to one, and the function returns delta-method standard errors.
 
-**Standard errors** of the weights are computed via the delta method, which propagates the uncertainty in the RMSE estimates through to the normalised weights:
+The delta method propagates uncertainty in the RMSE estimates to the normalised
+weights:
 
 ```python
 import numpy as np
@@ -96,7 +90,8 @@ standard_errors = delta_method(rmse, variance)
 method = "mse"
 ```
 
-Like inverse RMSE but **without the square root**, so larger errors are penalised more heavily:
+Inverse MSE follows the same scheme as inverse RMSE but omits the square root.
+It therefore penalises larger errors more heavily:
 
 ```python
 import numpy as np
@@ -108,7 +103,7 @@ y = np.array([1.0, 1.0, 1.0])
 weights, standard_errors = mse_weights(X, y, window_size=None, discount_param=1.0)
 ```
 
-Standard errors are computed via the same delta method.
+The function uses the same delta method for standard errors.
 
 ---
 
@@ -118,8 +113,8 @@ Standard errors are computed via the same delta method.
 method = "mae"
 ```
 
-The key difference is the use of absolute errors instead of squared errors.
-This makes the method less sensitive to a single large outlier.
+The method uses absolute errors instead of squared errors, so a single large
+outlier has less influence.
 
 ```python
 import numpy as np
@@ -140,7 +135,8 @@ weights, standard_errors = mae_weights(X, y, window_size=None, discount_param=1.
 method = "huber"
 ```
 
-Uses a Huber loss function that is **quadratic for small errors** and **linear for large errors**, providing a balance between MSE (efficient) and MAE (robust):
+The Huber loss is **quadratic for small errors** and **linear for large errors**.
+It balances the behavior of MSE and MAE:
 
 ```python
 import numpy as np
@@ -152,12 +148,13 @@ y = np.array([1.0, 1.0, 1.0])
 weights = huber_weights(X, y, window_size=None)
 ```
 
-The implementation uses the threshold `delta = 1.345 sigma`, then chooses the
-quadratic branch for small errors and the linear branch for large errors.
+The implementation sets `delta = 1.345 sigma` and applies the quadratic or
+linear branch according to the error size.
 
 !!! note "No discounting"
 
-    Unlike RMSE/MSE/MAE, the Huber method does **not** support the `discount_param`. All observations in the training window are weighted equally.
+    The Huber method ignores `discount_param` and gives every observation in
+    the training window equal weight.
 
 ---
 
@@ -167,7 +164,8 @@ quadratic branch for small errors and the linear branch for large errors.
 method = "least_squares"
 ```
 
-Unconstrained ordinary least squares regression of outturns on forecasts — the weights are just OLS coefficients:
+Ordinary least squares regresses outturns on forecasts without constraints.
+The weights are the OLS coefficients:
 
 ```python
 import numpy as np
@@ -179,25 +177,29 @@ y = np.array([1.0, 1.0, 1.0])
 weights, standard_errors = least_squares(X, y)
 ```
 
-The implementation uses `np.linalg.lstsq`, returning the minimum-norm solution
-when the design is rank deficient. Standard errors are returned when the
-design has full rank and more observations than sources; otherwise they are
-`NaN` and a warning is emitted.
+The implementation uses `np.linalg.lstsq`. It returns the minimum-norm solution
+when the design is rank deficient. It returns standard errors only when the
+design has full rank and more observations than sources; otherwise it returns
+`NaN` and emits a warning.
 
 !!! warning "No constraints"
 
-    OLS weights are unconstrained — they can be **negative** (shorting a model) and do **not** sum to one. This provides the most flexible fit but can lead to extreme or unstable weights, especially when forecasts are highly correlated or the training sample is short.
+    OLS weights are unconstrained. They can be **negative** and need not sum to
+    one. This flexibility can produce extreme or unstable weights when forecasts
+    are highly correlated or the training sample is short.
 
 !!! note "Data requirements"
 
-    OLS requires at least as many training observations as models (`T ≥ m`). If this condition is not met for a given vintage/horizon, the combination is skipped with a warning.
+    OLS requires at least as many training observations as models (`T ≥ m`). If
+    a vintage and horizon do not meet this condition, the method skips that
+    combination and emits a warning.
 
 !!! note "Standard errors are not always identified"
 
-    The snippet above is simplified. In the implementation the weights come
-    from a minimum-norm least-squares solve, which is well defined even for a
-    rank-deficient design. Standard errors require `T > m` **and** a full-rank
-    design; otherwise `NaN` standard errors are returned with a warning.
+    The weights come from a minimum-norm least-squares solve, which remains
+    defined for a rank-deficient design. Standard errors require `T > m` **and**
+    a full-rank design; otherwise the function returns `NaN` standard errors
+    with a warning.
 
 ---
 
@@ -207,7 +209,8 @@ design has full rank and more observations than sources; otherwise they are
 method = "constrained_least_squares"
 ```
 
-Minimises the sum of squared errors subject to **non-negativity** and **sum-to-one** constraints — the weights form a proper convex combination:
+The method minimises the sum of squared errors subject to **non-negativity** and
+**sum-to-one** constraints. The weights therefore form a convex combination:
 
 ```python
 import numpy as np
@@ -220,20 +223,23 @@ weights = constrained_least_squares(X, y)
 ```
 
 The implementation minimises the least-squares loss with JAX gradients and
-SciPy's SLSQP solver. It constrains every weight to be non-negative and makes
-the weights sum to one.
+SciPy's SLSQP solver. It keeps every weight non-negative and makes the weights
+sum to one.
 
 !!! tip "When to use constrained LS"
 
-    Constrained LS is the recommended choice when you want interpretable, non-negative weights that sum to one while still allowing the data to determine the optimal allocation across models. It is particularly useful when the number of models is moderate and the training sample is sufficiently large.
+    Constrained LS suits applications that require interpretable, non-negative
+    weights that sum to one while the data determines the allocation across
+    models. It works best with a moderate number of models and a sufficiently
+    large training sample.
 
 !!! warning "No standard errors"
 
-    Constrained least squares returns weights only — standard errors are not
-    identified for the constrained solution and are reported as `NaN`. The
-    same applies to `average` and `huber`. Scaling by `np.std(y)` also means a
-    `ValueError` is raised if the outturn has zero variance over the
-    estimation sample.
+    Constrained least squares returns weights only. The implementation reports
+    `NaN` for standard errors because the constraints leave their sampling
+    uncertainty unidentified. The same rule applies to `average` and `huber`.
+    Scaling by `np.std(y)` also raises `ValueError` when the outturn has zero
+    variance in the estimation sample.
 
 ---
 
@@ -260,7 +266,9 @@ combo.fit(
 )
 ```
 
-When set, only the most recent `window_size` observations are used for weight estimation. This makes the weights **adaptive** — they respond to recent changes in relative model performance. The implementation is the same across all methods:
+When set, the method uses only the most recent `window_size` observations. The
+weights then respond to recent changes in relative model performance. Every
+method applies the same window:
 
 ```python
 import numpy as np
@@ -273,7 +281,8 @@ if window_size is not None and len(y) > window_size:
     y = y[-window_size:]
 ```
 
-When `window_size = None` (default), all available training data is used (expanding window).
+When `window_size = None` (the default), the method uses all available training
+data in an expanding window.
 
 ### Discount parameter (`discount_param`)
 
@@ -294,24 +303,27 @@ combo.fit(
 )
 ```
 
-Applies exponential discounting to the training observations. Recent observations get weight close to 1, older observations are down-weighted:
+The method applies exponential discounting to the training observations. Recent
+observations receive weights near 1, while older observations receive lower
+weights:
 
 ```python
 import numpy as np
 
 discount_param = 0.9
 T = 5
-# With discount_param=0.9 and T=5:
+# With discount_param=0.9 and T=5, the factors are:
 # discount = [0.9^4, 0.9^3, 0.9^2, 0.9^1, 0.9^0]
 #           = [0.656, 0.729, 0.810, 0.900, 1.000]
 discount = discount_param ** np.arange(T - 1, -1, -1)
 ```
 
-When `discount_param = 1` (default), all observations are weighted equally (every discount factor is `1^k = 1`).
+When `discount_param = 1` (the default), every observation receives weight 1.
 
 !!! info "Applicability"
 
-    The discount parameter is currently implemented for the error-based methods (`rmse`, `mse`, `mae`). It is **not** applied to `least_squares`, `constrained_least_squares` or `huber`.
+    The discount parameter applies to the error-based methods (`rmse`, `mse`,
+    `mae`) and not to `least_squares`, `constrained_least_squares`, or `huber`.
 
 ### Period filter (`period_filter`)
 
@@ -333,7 +345,8 @@ combo.fit(
 )
 ```
 
-Excludes specific time periods from the training sample. This is useful for removing crisis periods (e.g. the COVID pandemic) that might distort weight estimates.
+The filter excludes selected periods from the training sample. Use it to remove
+crisis periods, such as the COVID pandemic, that could distort weight estimates.
 
 ### Outturn maturity (`k`)
 
@@ -354,7 +367,7 @@ combo.fit(
 )
 ```
 
-Controls outturn maturity. For a forecast target date $t$, requested maturity
+The parameter controls outturn maturity. For a forecast target date $t$, maturity
 `k` corresponds to outturn vintage $t + (k + 1)$ periods, so `k = 0` is the
 first post-target release. At each estimation vintage, exact maturity `k` is
 used when it has been published. For recent targets that have not reached `k`,
@@ -406,16 +419,15 @@ combo.fit(
 )
 ```
 
-The root spec's `flatten_and_validate()` method resolves the full dependency tree, and each
-node is fitted in order (leaves first). The combined forecasts from earlier
-specs are written back into the `ForecastData` object with `source = spec.name`,
-so downstream specs can reference them as input sources.
+The root specification's `flatten_and_validate()` method resolves the dependency
+tree. The combiner fits each node in order, starting with the leaves, and writes
+each result to `ForecastData` with `source = spec.name`. Later specifications can
+then use those results as input sources.
 
 !!! note "Dependencies resolve automatically"
 
-    Because nested `ComboSpec` objects are passed directly in `sources`, the
-    toolkit works out the correct fitting order via `flatten_and_validate()` — you do not
-    need to order the specs manually.
+    Nested `ComboSpec` objects in `sources` determine the fitting order through
+    `flatten_and_validate()`. You do not need to order the specifications by hand.
 
 !!! warning "`fit_hierarchical()` is deprecated"
 

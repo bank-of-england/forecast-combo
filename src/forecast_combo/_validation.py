@@ -4,7 +4,7 @@ import numpy as np
 
 
 def validate_forecast_matrix(X: np.ndarray, y: np.ndarray | None = None) -> None:
-    """Validate forecast-array shape, dtype, and finite values."""
+    """Check forecast and target arrays for valid shapes and real finite values."""
     if not isinstance(X, np.ndarray):
         raise TypeError(f"X must be a numpy array, got {type(X).__name__}")
     if X.ndim != 2:
@@ -31,13 +31,13 @@ def validate_forecast_matrix(X: np.ndarray, y: np.ndarray | None = None) -> None
 
 
 def validate_nonempty_sample(y: np.ndarray) -> None:
-    """Raise if the estimation target ``y`` is empty."""
+    """Require at least one target observation for estimation."""
     if y.size == 0:
         raise ValueError("The estimation sample is empty; at least one observation is required")
 
 
 def validate_window_size(window_size: int | None) -> None:
-    """Validate an optional rolling-window length."""
+    """Check an optional trailing-window length."""
     if window_size is None:
         return
     if isinstance(window_size, bool) or not isinstance(window_size, (int, np.integer)):
@@ -47,7 +47,7 @@ def validate_window_size(window_size: int | None) -> None:
 
 
 def apply_window(X: np.ndarray, y: np.ndarray, window_size: int | None) -> tuple[np.ndarray, np.ndarray]:
-    """Validate and apply an optional trailing estimation window."""
+    """Validate a window and return the selected trailing observations."""
     validate_window_size(window_size)
     if window_size is None or len(y) <= window_size:
         return X, y
@@ -55,7 +55,7 @@ def apply_window(X: np.ndarray, y: np.ndarray, window_size: int | None) -> tuple
 
 
 def validate_discount_param(discount_param: float) -> None:
-    """Validate the exponential discount factor."""
+    """Check the exponential discount factor."""
     if isinstance(discount_param, bool) or not isinstance(discount_param, (int, float, np.number)):
         raise TypeError(f"discount_param must be a number, got {type(discount_param).__name__}")
     if not np.isfinite(discount_param):
@@ -65,7 +65,7 @@ def validate_discount_param(discount_param: float) -> None:
 
 
 def validate_k(k: int) -> None:
-    """Validate the outturn maturity parameter ``k``."""
+    """Check the non-negative outturn maturity ``k``."""
     if isinstance(k, bool) or not isinstance(k, (int, np.integer)):
         raise TypeError(f"k must be an integer, got {type(k).__name__}")
     if k < 0:

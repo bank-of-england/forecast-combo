@@ -26,7 +26,7 @@ _REQUIRED_WEIGHT_COLUMNS = {
 
 
 def validate_plot_data(df: pd.DataFrame) -> None:
-    """Validate the common schema required by weight visualisations."""
+    """Check the columns and values required by weight plots."""
     if not isinstance(df, pd.DataFrame):
         raise TypeError(f"weights_df must be a pandas DataFrame, got {type(df).__name__}")
     missing = sorted(_REQUIRED_WEIGHT_COLUMNS - set(df.columns))
@@ -65,14 +65,14 @@ def validate_plot_data(df: pd.DataFrame) -> None:
 
 
 def require_plot_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Raise a clear error when filtering leaves no rows to plot."""
+    """Raise if filtering leaves no rows to plot."""
     if df.empty:
         raise ValueError("No weight data remains after applying the selected filters")
     return df
 
 
 def prepare_combo_data(df: pd.DataFrame, combo_label=None) -> pd.DataFrame:
-    """Copy ``df`` and optionally filter it down to specific ``combo_label``(s)."""
+    """Copy ``df`` and optionally filter it to selected ``combo_label`` values."""
     validate_plot_data(df)
     df = df.copy()
     if combo_label is not None:
@@ -96,7 +96,7 @@ def filter_plot_data(df: pd.DataFrame, *, model=None, method=None, variable=None
 
 
 def validate_frequency_column(df: pd.DataFrame) -> None:
-    """Validate the frequency column used to format vintage labels."""
+    """Check the frequency column used to format vintage labels."""
     if "frequency" not in df.columns:
         raise ValueError("weights_df is missing required column: frequency")
     if (
@@ -187,8 +187,8 @@ def render_facet_grid(
 ) -> tuple[Figure, np.ndarray]:
     """Build and render a grid of filtered facets.
 
-    Facets are visited in sorted order. ``render_facet`` receives the axes,
-    matching rows, facet values, and grid position for each facet.
+    The function visits facets in sorted order and passes each facet's axes,
+    matching rows, values, and grid position to ``render_facet``.
     """
     facet_combinations = df[facet_dims].drop_duplicates().sort_values(facet_dims)
     facet_values_list = [tuple(row) for row in facet_combinations.values]

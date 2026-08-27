@@ -22,8 +22,8 @@ import pytest
 
 from forecast_combo import ForecastCombo
 
-# Rounding keeps the snapshot stable across BLAS/optimiser builds while still
-# being tight enough to catch any substantive change in the results.
+# Round values to keep snapshots stable across BLAS and optimiser builds while
+# retaining enough precision to catch substantive result changes.
 DECIMALS = 6
 
 METHODS = ["average", "least_squares", "constrained_least_squares", "rmse", "mse", "mae", "huber"]
@@ -33,24 +33,22 @@ OUTTURN_QUARTERS = pd.period_range("2010Q1", "2024Q4", freq="Q")
 VINTAGE_QUARTERS = pd.period_range("2015Q1", "2024Q4", freq="Q")
 HORIZONS = [0, 1]
 
-# The full panel is used for estimation, so every method has a healthy sample,
-# but only the final vintages are snapshotted to keep the .ambr file readable.
+# The full panel provides enough observations for every method. Snapshot only
+# the final vintages to keep the .ambr file readable.
 SNAPSHOT_VINTAGES = [
     pd.Timestamp("2024-06-30"),
     pd.Timestamp("2024-09-30"),
     pd.Timestamp("2024-12-31"),
 ]
 
-# Per-source bias and noise scale. The sources are deliberately unequal so that
-# the estimated weights are not all trivially 1/3.
+# Give each source a distinct bias and noise scale so the weights differ.
 SOURCE_PARAMS = {
     "model_a": (0.05, 0.20),
     "model_b": (-0.30, 0.45),
     "model_c": (0.10, 0.80),
 }
 
-# Checksum of the seeded input forecasts, pinned so that an accidental change
-# to the fixture is reported directly instead of as a diff in every snapshot.
+# Pin the seeded forecast checksum so fixture changes fail directly.
 EXPECTED_LEVELS_SUM = 481.94333408904293
 
 
@@ -80,8 +78,7 @@ def build_snapshot_data() -> fe.ForecastData:
         for horizon in HORIZONS:
             target = vintage_quarter + horizon
             for source, (bias, scale) in SOURCE_PARAMS.items():
-                # Draws are taken in a fixed loop order, so the panel is
-                # byte-for-byte reproducible from the seed above.
+                # Keep the loop order fixed so the seeded panel is reproducible.
                 error = bias + scale * rng.standard_normal()
                 rows.append(
                     {
@@ -120,8 +117,7 @@ def fit_snapshot_combo(discount_param: float = 0.95) -> ForecastCombo:
 
 def _round(value) -> float:
     number = float(value)
-    # A NaN would compare unequal to itself and quietly weaken every
-    # comparison built on these summaries.
+    # Reject NaN values before comparing snapshot summaries.
     assert np.isfinite(number), f"Non-finite result value: {value}"
     return round(number, DECIMALS)
 
@@ -176,7 +172,7 @@ def snapshot_combo():
 
 
 def test_input_panel_is_reproducible():
-    """The synthetic panel must not drift; the snapshots depend on it."""
+    """The synthetic panel stays fixed because snapshots depend on it."""
     first = build_snapshot_data().forecasts
     second = build_snapshot_data().forecasts
 
@@ -224,7 +220,7 @@ def test_snapshot_is_sensitive_to_the_fit_configuration(snapshot_combo):
     assert perturbed.keys() == baseline.keys()
     for method in ("rmse", "mse", "mae"):
         assert perturbed[method] != baseline[method], f"Discounting did not change '{method}' weights"
-    # Discounting does not enter these methods, so they must be unaffected.
+    # These methods ignore discounting, so their weights stay unchanged.
     for method in ("average", "least_squares", "constrained_least_squares"):
         assert perturbed[method] == baseline[method], f"Discounting should not change '{method}' weights"
 

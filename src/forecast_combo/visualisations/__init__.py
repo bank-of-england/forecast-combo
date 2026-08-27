@@ -1,4 +1,4 @@
-"""Matplotlib visualisations of combination weights."""
+"""Matplotlib plots of forecast combination weights."""
 
 from importlib import import_module
 
@@ -13,7 +13,7 @@ _PLOT_MODULES = {
 
 
 def __getattr__(name):
-    """Load plotting modules only when a plotting function is requested."""
+    """Load the module that defines a requested plotting function."""
     if name in _PLOT_MODULES:
         module = import_module(f".{_PLOT_MODULES[name]}", __name__)
         function = getattr(module, name)

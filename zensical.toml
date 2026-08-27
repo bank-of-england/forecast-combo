@@ -1,13 +1,13 @@
 [project]
 site_name = "Forecast Combination Toolkit"
-site_description = "Documentation for the forecast-combo Python package — a toolkit for combining forecasts from multiple sources."
+site_description = "Documentation for the forecast-combo Python package, a toolkit for combining forecasts from multiple sources."
 site_author = "Bank of England"
 copyright = "Copyright &copy; 2026 Bank of England"
 
-# Add the public documentation URL once the site has been deployed.
+# Set the public documentation URL after deployment.
 # site_url = "https://www.example.com/"
 
-# Add repository links once the GitHub repository is public.
+# Set repository links after the GitHub repository becomes public.
 # repo_url = "https://github.com/bank-of-england/forecast-combo"
 # repo_name = "bank-of-england/forecast-combo"
 # edit_uri = "edit/main/docs/"
@@ -19,13 +19,13 @@ nav = [
   { "About" = "about.md" },
 ]
 
-# Additional JavaScript used by the documentation site.
+# Load the JavaScript required by the documentation site.
 extra_javascript = [
   "javascripts/mathjax.js",
   { url = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js", async = true },
 ]
 
-# Generate API reference pages from the public Python objects in src/.
+# Generate API pages from public Python objects in src/.
 [project.plugins.mkdocstrings]
 enabled = true
 
@@ -39,11 +39,10 @@ members_order = "source"
 show_signature_annotations = true
 
 [project.theme]
-# Use the default Zensical theme and English interface labels.
+# Use the default Zensical theme with English labels.
 language = "en"
 features = [
   # Show a dismissible announcement bar.
-  "announce.dismiss",
   # Add buttons to view or edit each page in the public repository.
   # "content.action.edit",
   # "content.action.view",

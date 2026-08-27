@@ -1,4 +1,4 @@
-"""Tests for how weight uncertainty is reported."""
+"""Test reporting uncertainty in estimated weights."""
 
 import numpy as np
 import pytest
@@ -28,7 +28,7 @@ def test_std_error_has_one_entry_per_source(sample, method):
 
 @pytest.mark.parametrize("method", UNCERTAINTY_NOT_ESTIMATED)
 def test_unsupported_uncertainty_is_nan_not_zero(sample, method):
-    """Methods without an uncertainty estimate must not claim zero uncertainty."""
+    """Methods without uncertainty estimates return ``NaN``, not zero."""
     X, y = sample
     _, std_error = get_weights(X, y, method=method, window_size=None, discount_param=1.0)
 

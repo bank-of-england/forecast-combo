@@ -69,7 +69,7 @@ def _draw_bars(ax: Axes, pivot: pd.DataFrame, stacked: bool) -> tuple[np.ndarray
 
 
 def _set_weight_ylim(ax, has_negative: bool) -> None:
-    """Pin the axis at zero only when nothing negative needs to be shown."""
+    """Set the lower y-axis limit to zero when all values are non-negative."""
     if has_negative:
         ax.axhline(0, linewidth=0.8)
     else:
@@ -119,17 +119,17 @@ def bar_plot_by_vintage(
     if y_axis not in ("model", "method", "variable"):
         raise ValueError("y_axis must be 'model', 'method', or 'variable'")
 
-    # Apply filters
+    # Filter the plotting data.
     df = prepare_combo_data(weights_df, combo_label)
     df = filter_plot_data(df, model=model, method=method, variable=variable, horizon=horizon)
 
-    # Determine faceting dimensions (all dims except y_axis, plus horizon if specified)
+    # Use every dimension except y_axis, and add horizon when requested.
     facet_dims = facet_dimensions(df, y_axis)
     if horizon is not None:
         facet_dims = ["horizon"] + facet_dims
 
     def render_facet(ax, df_subset, facet_combo, row, col, n_rows, n_cols):
-        # Pivot to (y_axis x vintage_date); average over horizons if not already faceted
+        # Average over horizons, then arrange values by y_axis and vintage date.
         pivot = df_subset.groupby(["vintage_date", y_axis])["weight"].mean().unstack(y_axis).sort_index()
 
         x, has_negative = _draw_bars(ax, pivot, _use_stacked_bars(pivot, y_axis))
@@ -204,15 +204,15 @@ def bar_plot_by_horizon(
     if y_axis not in ("model", "method", "variable"):
         raise ValueError("y_axis must be 'model', 'method', or 'variable'")
 
-    # Apply filters
+    # Filter the plotting data.
     df = prepare_combo_data(weights_df, combo_label)
     df = filter_plot_data(df, model=model, method=method, variable=variable)
 
-    # Determine faceting dimensions (all dims except y_axis)
+    # Use every dimension except y_axis for the facets.
     facet_dims = facet_dimensions(df, y_axis)
 
     def render_facet(ax, df_subset, facet_combo, row, col, n_rows, n_cols):
-        # Average over vintage dates, then pivot to (y_axis x horizon)
+        # Average over vintage dates, then arrange values by y_axis and horizon.
         pivot = df_subset.groupby(["horizon", y_axis])["weight"].mean().unstack(y_axis).sort_index()
 
         x, has_negative = _draw_bars(ax, pivot, _use_stacked_bars(pivot, y_axis))

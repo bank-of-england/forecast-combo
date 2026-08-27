@@ -1,4 +1,4 @@
-"""Forecast combination toolkit: combine forecasts from multiple sources."""
+"""Tools for combining forecasts from multiple sources."""
 
 from . import combinations, visualisations
 from .forecast_combo import (
@@ -23,7 +23,7 @@ _PLOT_FUNCTIONS = frozenset(
 
 
 def __getattr__(name):
-    """Load plotting functions only when they are requested."""
+    """Load a plotting function when a caller requests it."""
     if name in _PLOT_FUNCTIONS:
         function = getattr(visualisations, name)
         globals()[name] = function

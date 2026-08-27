@@ -127,7 +127,7 @@ def test_weight_functions_reject_boolean_window(weight_function):
 
 
 def test_get_weights_average_tolerates_empty_target():
-    """``average`` never touches ``y``, so an empty target must not raise."""
+    """``average`` ignores ``y`` and accepts an empty target."""
     weights, std_errors = get_weights(np.empty((0, 2)), np.empty(0), "average", None, 1.0)
 
     assert weights == pytest.approx([0.5, 0.5])

@@ -1,6 +1,4 @@
-"""
-Tests for ForecastCombo class.
-"""
+"""Test the ``ForecastCombo`` class and hierarchical specifications."""
 
 import importlib
 
@@ -19,7 +17,7 @@ def _fit_unfiltered_baseline(fer_data):
     forecast_data = fer_data.copy()
     combo = ForecastCombo(forecast_data=forecast_data)
 
-    # just one vintage in this test for speed
+    # Fit one vintage to keep this fixture fast.
     last_vintage = np.sort(forecast_data.outturns["vintage_date"].unique())[-1]
     combo.fit(
         sources=["mpr", "baseline ar(p) model"],
@@ -33,10 +31,10 @@ def _fit_unfiltered_baseline(fer_data):
 
 @pytest.fixture(scope="module")
 def unfiltered_baseline(fer_data):
-    """Read-only baseline results fitted without a period filter.
+    """Return baseline results fitted without a period filter.
 
-    Copies are returned so that a consuming test cannot mutate the shared
-    fixture and change the behaviour of the other tests in this module.
+    Return copies so consuming tests cannot mutate the shared fixture and
+    change the behaviour of other tests in this module.
     """
     combo = _fit_unfiltered_baseline(fer_data)
     return {
@@ -46,18 +44,16 @@ def unfiltered_baseline(fer_data):
 
 
 def test_forecast_combo_fit_runs(fer_data):
-    """Test that ForecastCombo.fit() runs without errors."""
+    """``ForecastCombo.fit`` creates forecasts and stores weights."""
     combo = _fit_unfiltered_baseline(fer_data)
 
-    # Assert that combined forecasts were created
     assert not combo._combined_forecasts.empty
 
-    # Assert that weights were stored
     assert len(combo.weights) > 0
 
 
 def test_fit_raises_clear_error_when_no_combined_forecasts_are_produced(monkeypatch, fer_data):
-    """An empty estimation result should raise the explanatory fit error."""
+    """An empty estimation result raises the explanatory fit error."""
     monkeypatch.setattr(forecast_combo_module, "_estimation_loop", lambda **kwargs: ([], []))
     combo = ForecastCombo(forecast_data=fer_data.copy())
 
@@ -66,7 +62,7 @@ def test_fit_raises_clear_error_when_no_combined_forecasts_are_produced(monkeypa
 
 
 def test_fit_raises_clear_error_when_combined_forecasts_are_all_nan(monkeypatch, fer_data):
-    """Rows with only NaN combined values should be treated as an empty result."""
+    """The fit treats rows with only NaN combined values as an empty result."""
     monkeypatch.setattr(
         forecast_combo_module,
         "_estimation_loop",
@@ -79,23 +75,23 @@ def test_fit_raises_clear_error_when_combined_forecasts_are_all_nan(monkeypatch,
 
 
 def test_forecast_combo_fit_with_period_filter(fer_data, unfiltered_baseline):
-    """Test that ForecastCombo.fit() works with period_filter for COVID periods and compare with baseline."""
+    """Filtering COVID periods changes the fitted weights and forecasts."""
     forecast_data = fer_data.copy()
 
-    # Initialise ForecastCombo with multiple sources and variables
+    # Build a combiner with multiple sources and variables.
     combo = ForecastCombo(
         forecast_data=forecast_data,
     )
 
-    # Get the frequency from the data to ensure period compatibility
+    # Read the data frequency for period conversion.
     freq = forecast_data.outturns["frequency"].iloc[0]
 
-    # Create COVID periods (Q2 2020 through Q4 2022) with quarter-end frequency
+    # Build the periods to exclude from training.
     from forecast_combo.utils import create_period_filter
 
     covid_periods = create_period_filter("2020Q1", "2021Q4", freq=freq)
 
-    # Fit the combination model with COVID periods filtered
+    # Fit the combination with those periods excluded.
     last_vintage = np.sort(forecast_data.outturns["vintage_date"].unique())[-1]
     combo.fit(
         sources=["mpr", "baseline ar(p) model"],
@@ -106,29 +102,25 @@ def test_forecast_combo_fit_with_period_filter(fer_data, unfiltered_baseline):
         period_filter=covid_periods,
     )
 
-    # Assert that combined forecasts were created
     assert not combo._combined_forecasts.empty
 
-    # Assert that weights were stored
     assert len(combo.weights) > 0
 
-    # Compare with the unfiltered baseline, which this test fits independently
+    # Compare the result with the independently fitted unfiltered baseline.
     baseline_weights = unfiltered_baseline["weights"]
     baseline_forecasts = unfiltered_baseline["combined_forecasts"]
 
     assert not baseline_weights.empty
     assert not baseline_forecasts.empty
 
-    # Compare weights and forecasts
     assert len(combo.weights) == len(baseline_weights), "Number of weight records differs"
     assert len(combo._combined_forecasts) == len(baseline_forecasts), "Number of forecast records differs"
 
-    # check that the estimated weights are different
     assert not combo.weights.equals(baseline_weights), "Weights should differ when COVID periods are filtered"
 
 
 def test_automatic_labelling_with_period_filter_is_consistent(fer_data):
-    """automatic_labelling creates every declared id column, also with a period filter."""
+    """Automatic labelling copies each metadata field into the stored forecasts."""
     from forecast_combo.utils import create_period_filter
 
     forecast_data = fer_data.copy()
@@ -157,8 +149,7 @@ def test_automatic_labelling_with_period_filter_is_consistent(fer_data):
     assert not combined.empty
 
     for column in metadata_columns:
-        # Every declared id column exists and carries the same value in both tables.
-        # ForecastData stores id columns as strings, so compare on that basis.
+        # ForecastData stores identifier columns as strings.
         assert column in combo.weights.columns
         assert column in forecasts.columns
         assert set(combined[column].astype(str)) == set(combo.weights[column].astype(str))
@@ -167,7 +158,7 @@ def test_automatic_labelling_with_period_filter_is_consistent(fer_data):
 
 
 def test_estimation_loop_uses_available_outturn_maturity_without_lookahead(monkeypatch):
-    """Use exact k where available, otherwise the most mature published release."""
+    """Use exact k where available and the most mature release otherwise."""
     dates = pd.to_datetime(["2020-12-31", "2021-03-31", "2021-06-30", "2021-09-30", "2021-12-31"])
     rows = []
     for date_index, date in enumerate(dates):
@@ -213,8 +204,8 @@ def test_estimation_loop_uses_available_outturn_maturity_without_lookahead(monke
         print_warning=False,
     )
 
-    # At 2021Q4, 2020Q4 has reached exact k=3. More recent targets fall
-    # back to the most mature release published by 2021Q4: k=2, 1, and 0.
+    # At 2021Q4, 2020Q4 has reached k=3. Later targets use the most mature
+    # release available at that vintage: k=2, 1, and 0.
     np.testing.assert_array_equal(
         captured["X"],
         np.array([[1.0, 10.0], [2.0, 20.0], [3.0, 30.0], [4.0, 40.0]]),
@@ -223,7 +214,7 @@ def test_estimation_loop_uses_available_outturn_maturity_without_lookahead(monke
 
 
 def test_estimation_loop_supports_final_outturns_without_vintages(monkeypatch):
-    """When outturn vintages are unavailable, k remains a no-op."""
+    """The estimation loop ignores ``k`` when outturn vintages are absent."""
     dates = pd.to_datetime(["2021-03-31", "2021-06-30", "2021-09-30"])
     rows = []
     for date_index, date in enumerate(dates, start=1):
@@ -267,11 +258,11 @@ def test_estimation_loop_supports_final_outturns_without_vintages(monkeypatch):
 
 
 def test_fit_uses_target_minus_vintage_for_grouping(fer_data):
-    """fit() must not require a 'forecast_horizon' column on outturns.
+    """``fit`` groups outturns with ``target_minus_vintage``.
 
-    Outturns only carry the derived 'target_minus_vintage' column; forecasts
-    separately carry a forecaster-supplied 'forecast_horizon'. fit() must
-    source vintage-distance from 'target_minus_vintage' on both sides.
+    Outturns carry ``target_minus_vintage`` and forecasts carry the
+    forecaster-supplied ``forecast_horizon``. The fit uses the former for
+    vintage distance on both sides of the merge.
     """
     forecast_data = fer_data.copy()
 
@@ -293,7 +284,7 @@ def test_fit_uses_target_minus_vintage_for_grouping(fer_data):
 
 
 def test_combined_forecasts_have_horizon_column_not_forecast_horizon(fer_data):
-    """The combined-forecasts table exposes 'horizon' (vintage-distance), not 'forecast_horizon'."""
+    """The combined table exposes ``horizon`` as vintage distance."""
     forecast_data = fer_data.copy()
     combo = ForecastCombo(forecast_data=forecast_data)
     last_vintage = np.sort(forecast_data.outturns["vintage_date"].unique())[-1]
@@ -318,7 +309,7 @@ def test_combined_forecasts_have_horizon_column_not_forecast_horizon(fer_data):
 
 
 def test_estimation_loop_computes_correct_target_period_from_horizon(fer_data):
-    """target_period = vintage_period + horizon must reconstruct the forecast date."""
+    """Adding ``horizon`` to the vintage period reconstructs the forecast date."""
     forecast_data = fer_data.copy()
     combo = ForecastCombo(forecast_data=forecast_data)
     last_vintage = np.sort(forecast_data.outturns["vintage_date"].unique())[-1]
@@ -342,22 +333,21 @@ def test_estimation_loop_computes_correct_target_period_from_horizon(fer_data):
 
 
 def _combo_rows(forecast_data, metric="levels"):
-    """Return the combo-written rows from a ForecastData's stored forecasts.
+    """Return rows written by a combo for one metric.
 
-    Filters to a single metric because add_forecasts(compute_levels=True) also
-    derives other metrics (e.g. 'pop') from the written 'levels' rows.
+    ``add_forecasts(compute_levels=True)`` derives other metrics from the
+    written ``levels`` rows, so the helper selects one metric.
     """
     forecasts = forecast_data.forecasts
     return forecasts[(forecasts["type"] == "combo") & (forecasts["metric"] == metric)]
 
 
 def test_write_back_forecast_horizon_is_information_horizon(monkeypatch):
-    """The 'forecast_horizon' persisted via fit()->add_forecasts() is the information horizon.
+    """Write-back ``forecast_horizon`` records the information horizon.
 
-    Both input forecasts carry a forecaster-supplied 'forecast_horizon' that is
-    deliberately different from both the vintage-distance ('horizon') and the
-    expected information horizon, so the test cannot pass by accident if the
-    write-back regresses to reusing an input source's 'forecast_horizon'.
+    Input forecasts use values that differ from vintage distance and the
+    expected information horizon. The test therefore detects reuse of an input
+    source's ``forecast_horizon``.
     """
 
     def fake_get_weights(X, y, method, window_size, discount_param):
@@ -377,11 +367,8 @@ def test_write_back_forecast_horizon_is_information_horizon(monkeypatch):
             },
         ]
     )
-    # Two forecasts sharing vintage-distance horizon=1: a 2020Q1 forecast (with
-    # a matching, already-published outturn usable as training data) and the
-    # 2020Q2 forecast being produced now. Both carry forecaster-supplied
-    # 'forecast_horizon' values (42, 7) that differ from horizon (1) and from
-    # the expected information horizon (0).
+    # Use two forecasts with vintage distance 1 and distinct input
+    # forecast_horizon values to test the write-back calculation.
     forecasts = pd.DataFrame(
         [
             {
@@ -443,7 +430,7 @@ def test_write_back_forecast_horizon_is_information_horizon(monkeypatch):
     assert len(combo_rows) == 1
     row = combo_rows.iloc[0]
     assert row["date"] == pd.Timestamp("2020-06-30")
-    # last training period used is 2020Q1; target period is 2020Q2.
+    # The last training period is 2020Q1, and the target period is 2020Q2.
     assert row["forecast_horizon"] == 0
     assert isinstance(row["forecast_horizon"], (int, np.integer))
 
@@ -453,7 +440,7 @@ def test_write_back_forecast_horizon_is_information_horizon(monkeypatch):
 
 
 def test_fit_matches_forecasts_and_outturns_by_date_not_dataframe_index(monkeypatch):
-    """Different input DataFrame indices must not affect date-based fitting."""
+    """Date-based fitting ignores input DataFrame indices."""
 
     def fake_get_weights(X, y, method, window_size, discount_param):
         return np.full(X.shape[1], 1 / X.shape[1]), np.zeros(X.shape[1])
@@ -538,15 +525,14 @@ def test_fit_matches_forecasts_and_outturns_by_date_not_dataframe_index(monkeypa
 
 
 def test_write_back_forecast_horizon_falls_back_to_horizon_when_no_training_data(monkeypatch):
-    """Persisted 'forecast_horizon' equals 'horizon' when a group has zero training observations."""
+    """Write-back uses ``horizon`` when no training observations exist."""
 
     def fake_get_weights(X, y, method, window_size, discount_param):
         return np.full(X.shape[1], 1 / X.shape[1]), np.zeros(X.shape[1])
 
     monkeypatch.setattr(forecast_combo_module, "get_weights", fake_get_weights)
 
-    # The only outturn available is for the target itself, so it can't be used
-    # as training data (training requires dates strictly before the target).
+    # The only outturn matches the target, so it cannot train that target.
     outturns = pd.DataFrame(
         [
             {
@@ -568,7 +554,7 @@ def test_write_back_forecast_horizon_falls_back_to_horizon_when_no_training_data
                 "frequency": "Q",
                 "metric": "levels",
                 "value": 110.0,
-                "forecast_horizon": 77,  # deliberately different from horizon (1)
+                "forecast_horizon": 77,
                 "source": "a",
             },
             {
@@ -680,7 +666,7 @@ def _run_partial_source_loop(sources=("a", "b"), merged_data=None, **overrides):
 
 
 def test_allow_partial_sources_defaults_to_fitting_available_sources():
-    """By default a missing source is dropped and the fit proceeds."""
+    """Partial-source mode drops missing sources and completes the fit."""
     list_weights, list_combined_forecasts = _run_partial_source_loop()
 
     assert list_combined_forecasts, "Expected a combined forecast from the available source"
@@ -715,19 +701,14 @@ def test_allow_partial_sources_false_raises_on_missing_source():
 
 
 def test_allow_partial_sources_false_allows_complete_fit():
-    """Strict mode does not interfere when every requested source is present."""
+    """Strict mode accepts a fit when every requested source is present."""
     _, list_combined_forecasts = _run_partial_source_loop(sources=("a",), allow_partial_sources=False)
 
     assert list_combined_forecasts
 
 
-# ---------------------------------------------------------------------------
-# ComboSpec tests
-# ---------------------------------------------------------------------------
-
-
 def test_combo_spec_defaults():
-    """ComboSpec should have sensible defaults for all optional fields."""
+    """A ``ComboSpec`` supplies the documented defaults."""
     spec = ComboSpec(name="my_combo", sources=["a", "b"])
 
     assert spec.name == "my_combo"
@@ -745,7 +726,7 @@ def test_combo_spec_defaults():
 
 
 def test_combo_spec_custom_values():
-    """ComboSpec should store any explicitly supplied values."""
+    """A ``ComboSpec`` stores explicitly supplied values."""
     spec = ComboSpec(
         name="top",
         sources=["stage1", "stage2"],
@@ -762,7 +743,7 @@ def test_combo_spec_custom_values():
 
 
 def test_combo_spec_source_names():
-    """source_names should resolve nested ComboSpec objects to their names."""
+    """``source_names`` resolves nested specifications to their names."""
     child = ComboSpec(name="child", sources=["a", "b"])
     parent = ComboSpec(name="parent", sources=[child, "c"])
 
@@ -770,7 +751,7 @@ def test_combo_spec_source_names():
 
 
 def test_combo_spec_flatten_simple():
-    """flatten should return a single spec when there are no nested specs."""
+    """Flattening a leaf specification returns one node."""
     spec = ComboSpec(name="leaf", sources=["a", "b"])
     flat = spec.flatten_and_validate()
     assert len(flat) == 1
@@ -778,7 +759,7 @@ def test_combo_spec_flatten_simple():
 
 
 def test_combo_spec_flatten_nested():
-    """flatten should return all nodes in dependency order (leaves first)."""
+    """Flattening nested specifications returns leaves before parents."""
     child_a = ComboSpec(name="child_a", sources=["x"])
     child_b = ComboSpec(name="child_b", sources=["y"])
     parent = ComboSpec(name="parent", sources=[child_a, child_b, "z"])
@@ -789,7 +770,7 @@ def test_combo_spec_flatten_nested():
 
 
 def test_combo_spec_flatten_deep():
-    """flatten should handle three levels of nesting."""
+    """Flattening handles three levels of nesting."""
     grandchild = ComboSpec(name="gc", sources=["x"])
     child = ComboSpec(name="child", sources=[grandchild, "y"])
     root = ComboSpec(name="root", sources=[child, "z"])
@@ -800,7 +781,7 @@ def test_combo_spec_flatten_deep():
 
 
 def test_combo_spec_flatten_deduplicates():
-    """flatten should not repeat specs that appear in multiple branches."""
+    """Flattening lists a shared specification once."""
     shared = ComboSpec(name="shared", sources=["x"])
     branch_a = ComboSpec(name="branch_a", sources=[shared, "a"])
     branch_b = ComboSpec(name="branch_b", sources=[shared, "b"])
@@ -812,7 +793,7 @@ def test_combo_spec_flatten_deduplicates():
 
 
 def test_combo_spec_flatten_shared_object_visited_once():
-    """A shared child object should be fitted-order listed exactly once."""
+    """A shared child appears once in fitting order."""
     shared = ComboSpec(name="shared", sources=["x"])
     root = ComboSpec(name="root", sources=[shared, shared, "a"])
 
@@ -821,7 +802,7 @@ def test_combo_spec_flatten_shared_object_visited_once():
 
 
 def test_combo_spec_flatten_detects_self_cycle():
-    """A spec listing itself as a source should raise a cycle error."""
+    """A spec that lists itself as a source raises a cycle error."""
     node = ComboSpec(name="loop", sources=["x"])
     node.sources.append(node)
 
@@ -830,7 +811,7 @@ def test_combo_spec_flatten_detects_self_cycle():
 
 
 def test_combo_spec_flatten_detects_mutual_cycle():
-    """Two specs referencing each other should raise a cycle error."""
+    """Two specs that reference each other raise a cycle error."""
     a = ComboSpec(name="a", sources=["x"])
     b = ComboSpec(name="b", sources=[a])
     a.sources.append(b)
@@ -840,7 +821,7 @@ def test_combo_spec_flatten_detects_mutual_cycle():
 
 
 def test_combo_spec_flatten_detects_duplicate_names():
-    """Distinct specs sharing a name should raise a duplicate-name error."""
+    """Distinct specs sharing a name raise a duplicate-name error."""
     dup_a = ComboSpec(name="dup", sources=["x"])
     dup_b = ComboSpec(name="dup", sources=["y"])
     root = ComboSpec(name="root", sources=[dup_a, dup_b])
@@ -850,13 +831,13 @@ def test_combo_spec_flatten_detects_duplicate_names():
 
 
 def test_combo_spec_flatten_rejects_list_method():
-    """A list-valued method should raise because output naming is ambiguous."""
+    """A list-valued method raises because output naming is ambiguous."""
     with pytest.raises(TypeError, match="single string"):
         ComboSpec(name="multi", sources=["x", "y"], method=["average", "rmse"])
 
 
 def test_combo_spec_flatten_detects_raw_source_collision():
-    """A node name colliding with a raw source should raise when checked."""
+    """A node name that collides with a raw source raises during validation."""
     node = ComboSpec(name="collision", sources=["x", "y"])
 
     with pytest.raises(ValueError, match="collides with a raw forecast source"):
@@ -864,18 +845,13 @@ def test_combo_spec_flatten_detects_raw_source_collision():
 
 
 def test_validate_spec_graph_across_roots():
-    """validate_spec_graph should dedupe shared children across roots."""
+    """``validate_spec_graph`` deduplicates shared children across roots."""
     shared = ComboSpec(name="shared", sources=["x"])
     root_a = ComboSpec(name="root_a", sources=[shared, "a"])
     root_b = ComboSpec(name="root_b", sources=[shared, "b"])
 
     names = [s.name for s in forecast_combo_module.validate_spec_graph([root_a, root_b])]
     assert names == ["shared", "root_a", "root_b"]
-
-
-# ---------------------------------------------------------------------------
-# Hierarchical fit tests (new API: fit(sources=ComboSpec))
-# ---------------------------------------------------------------------------
 
 
 def test_fit_drops_nan_forecast_rows_from_the_estimation_panel(fer_data):
@@ -903,7 +879,7 @@ def _penultimate_vintage(forecast_data):
 
 
 def test_fit_with_nested_combo_spec(fer_data):
-    """fit(sources=ComboSpec) with nested specs should produce all combo sources."""
+    """A nested specification creates every stage as a forecast source."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
     vintage = _penultimate_vintage(fer_data)
 
@@ -953,7 +929,7 @@ def test_fit_with_nested_combo_spec(fer_data):
 
 
 def test_fit_with_combo_spec_ignores_outer_options(fer_data):
-    """A single ComboSpec should ignore fit options supplied outside the spec."""
+    """A single ``ComboSpec`` ignores fit options supplied outside the spec."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
     vintage = _penultimate_vintage(fer_data)
     spec = ComboSpec(
@@ -969,7 +945,7 @@ def test_fit_with_combo_spec_ignores_outer_options(fer_data):
 
 
 def test_fit_with_mixed_combo_spec_validates_outer_options(fer_data):
-    """A mixed ComboSpec call should validate options for its top-level fit."""
+    """A mixed ``ComboSpec`` call validates options for its top-level fit."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
     vintage = _penultimate_vintage(fer_data)
     child = ComboSpec(
@@ -988,7 +964,7 @@ def test_fit_with_mixed_combo_spec_validates_outer_options(fer_data):
 
 
 def test_fit_with_mixed_sources(fer_data):
-    """fit(sources=[ComboSpec, str]) should fit nested specs then combine."""
+    """``fit(sources=[ComboSpec, str])`` fits nested specs and then combines them."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
     vintage = _penultimate_vintage(fer_data)
 
@@ -1011,7 +987,7 @@ def test_fit_with_mixed_sources(fer_data):
 
 
 def test_fit_combo_spec_uses_name_as_source(fer_data):
-    """fit(sources=ComboSpec) must store combos with source=name."""
+    """``fit(sources=ComboSpec)`` stores the combination under its name."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
     vintage = _penultimate_vintage(fer_data)
 
@@ -1048,7 +1024,7 @@ def test_multi_method_fit_with_label_sets_source_to_label(fer_data):
 
 
 def test_fit_combo_spec_returns_self(fer_data):
-    """fit(sources=ComboSpec) should return the ForecastCombo instance for chaining."""
+    """``fit(sources=ComboSpec)`` returns the ``ForecastCombo`` for chaining."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
     vintage = _penultimate_vintage(fer_data)
 
@@ -1081,13 +1057,8 @@ def test_combined_forecasts_carry_method_column(fer_data):
     assert {"average", "rmse"}.issubset(set(combo_forecasts["method"].unique()))
 
 
-# ---------------------------------------------------------------------------
-# Deprecated fit_hierarchical tests (kept for backwards-compatibility)
-# ---------------------------------------------------------------------------
-
-
 def test_fit_hierarchical_emits_deprecation_warning(fer_data):
-    """fit_hierarchical should emit a DeprecationWarning."""
+    """``fit_hierarchical`` emits a ``DeprecationWarning``."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
     vintage = _penultimate_vintage(fer_data)
 
@@ -1102,7 +1073,7 @@ def test_fit_hierarchical_emits_deprecation_warning(fer_data):
 
 
 def test_fit_hierarchical_invalid_specs_type(fer_data):
-    """Passing something other than a list of ComboSpecs should raise TypeError."""
+    """``fit_hierarchical`` rejects values other than a list of ``ComboSpec`` objects."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
 
     with pytest.warns(DeprecationWarning):
@@ -1112,11 +1083,6 @@ def test_fit_hierarchical_invalid_specs_type(fer_data):
     with pytest.warns(DeprecationWarning):
         with pytest.raises(TypeError, match="list of ComboSpec"):
             combo.fit_hierarchical(specs=["not_a_spec"], variables=["gdpkp"])
-
-
-# ---------------------------------------------------------------------------
-# Core parameter validation
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -1172,7 +1138,7 @@ def test_fit_rejects_empty_or_duplicate_collections(fer_data, kwargs, match):
 
 
 def test_fit_rejects_period_filter_with_mismatched_frequency(fer_data):
-    """A pd.Period whose frequency differs from the data frequency is rejected."""
+    """A period with the wrong frequency is rejected."""
     combo = ForecastCombo(forecast_data=fer_data.copy())
     with pytest.raises(ValueError, match="does not match the data frequency"):
         combo.fit(

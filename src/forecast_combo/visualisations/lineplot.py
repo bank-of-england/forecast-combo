@@ -56,17 +56,17 @@ def line_plot_by_vintage(
     if y_axis not in ("model", "method", "variable"):
         raise ValueError("y_axis must be 'model', 'method', or 'variable'")
 
-    # Apply filters
+    # Filter the plotting data.
     df = prepare_combo_data(weights_df, combo_label)
     df = filter_plot_data(df, model=model, method=method, variable=variable, horizon=horizon)
 
-    # Determine faceting dimensions (all dims except y_axis, plus horizon if specified)
+    # Use every dimension except y_axis, and add horizon when requested.
     facet_dims = facet_dimensions(df, y_axis)
     if horizon is not None:
         facet_dims = ["horizon"] + facet_dims
 
     def render_facet(ax, df_subset, facet_combo, row, col, n_rows, n_cols):
-        # Average over any remaining horizons (or show exact values if already faceted by horizon)
+        # Average over horizons that are not already facet dimensions.
         for val in sorted(df_subset[y_axis].unique()):
             d = (
                 df_subset[df_subset[y_axis] == val]
@@ -143,15 +143,15 @@ def line_plot_by_horizon(
     if y_axis not in ("model", "method", "variable"):
         raise ValueError("y_axis must be 'model', 'method', or 'variable'")
 
-    # Apply filters
+    # Filter the plotting data.
     df = prepare_combo_data(weights_df, combo_label)
     df = filter_plot_data(df, model=model, method=method, variable=variable)
 
-    # Determine faceting dimensions (all dims except y_axis)
+    # Use every dimension except y_axis for the facets.
     facet_dims = facet_dimensions(df, y_axis)
 
     def render_facet(ax, df_subset, facet_combo, row, col, n_rows, n_cols):
-        # Average over vintage dates
+        # Average over vintage dates.
         for val in sorted(df_subset[y_axis].unique()):
             d = df_subset[df_subset[y_axis] == val].groupby("horizon")["weight"].mean()
             ax.plot(d.index, d.values, label=val)

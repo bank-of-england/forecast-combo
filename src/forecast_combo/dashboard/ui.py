@@ -13,7 +13,7 @@ def create_ui(combo_df: pd.DataFrame) -> ui.Tag:
     ----------
     combo_df : pd.DataFrame
         Combination weights, which must satisfy the plotting data contract.
-        Their unique values populate the sidebar filters.
+        The sidebar filters use the unique values in this DataFrame.
 
     Returns
     -------

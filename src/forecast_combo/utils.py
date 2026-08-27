@@ -1,4 +1,4 @@
-"""Utility helpers for building fit() inputs."""
+"""Helpers for building inputs to ``ForecastCombo.fit``."""
 
 import pandas as pd
 
@@ -6,7 +6,7 @@ import pandas as pd
 def create_period_filter(
     start_period: str | pd.Period | pd.Timestamp, end_period: str | pd.Period | pd.Timestamp, freq: str
 ) -> list[pd.Period]:
-    """Create periods between two endpoints at a specified frequency.
+    """Return every period from the start through the end point.
 
     Parameters
     ----------

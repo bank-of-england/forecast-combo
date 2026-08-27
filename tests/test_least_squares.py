@@ -44,7 +44,7 @@ def test_least_squares_window_applied_before_sample_size_checks():
     X = rng.normal(size=(50, 3))
     y = X @ np.array([0.2, 0.3, 0.5]) + rng.normal(scale=0.1, size=50)
 
-    # 3 observations for 3 sources once the window is applied
+    # The window leaves three observations for three sources.
     with pytest.warns(UserWarning, match="more observations than sources"):
         _, std_errors = least_squares(X, y, window_size=3)
 

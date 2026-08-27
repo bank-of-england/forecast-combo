@@ -175,9 +175,8 @@ git push origin fix/#1-prior
 
 ## Creating a Release (for maintainers)
 
-The release automation starts when you push a version tag or run the release
-workflow manually. The tag must use the `v<version>` format and match the
-version in `pyproject.toml`.
+The release automation starts when you push a version tag. The tag must use
+the `v<version>` format and match the version in `pyproject.toml`.
 
 For example, to release version `0.1.1`:
 
@@ -196,32 +195,26 @@ zensical build --clean --strict
 pytest
 ```
 
-4. Commit the version and changelog updates, then create the matching tag:
+4. Commit the version and changelog updates, then create and push the matching
+   tag:
 
 ```bash
-git add pyproject.toml CHANGELOG.md
+git add pyproject.toml CHANGELOG.md docs/api.md
 git commit -m "Prepare release 0.1.1"
 git tag v0.1.1
 git push origin main v0.1.1
 ```
 
-Pushing the tag starts `.github/workflows/create-release.yml`. That workflow calls the reusable quality workflow and creates the GitHub Release only when Ruff, API documentation checks, pydoclint, the strict Zensical build, and the full test suite pass. A failed check prevents release creation.
-
-You can also run the workflow from the GitHub Actions tab. Select **Create
-GitHub Release**, choose **Run workflow**, and enter the existing version tag
-in the `release_tag` field. The workflow checks out and tests that tag before
-creating its release. If the release already exists, the workflow reuses it and
-continues with package publication and documentation deployment. Manual runs do
-not create tags, so push the tag first.
-
-After the GitHub Release is created, the release workflow calls two reusable
-workflows:
+Pushing the tag starts `.github/workflows/create-release.yml`. The workflow
+creates the GitHub Release with the repository's `RELEASE_TOKEN` secret. The
+secret must be a fine-grained personal access token with **Contents: Read and
+write** permission for this repository. GitHub then emits the `published`
+release event, which starts these existing workflows:
 
 - `publish-pypi.yml` builds the distribution and publishes it to PyPI.
 - `deploy-docs.yml` builds the documentation site and deploys it to GitHub Pages.
 
-Both workflows also listen for the `published` release event, so they can run
-when a release is created through the GitHub interface.
-
 The release workflow generates GitHub release notes from the commit history.
-Keep `CHANGELOG.md` up to date as the project record; the workflow does not edit that file automatically. The `workflow_dispatch` options in the individual workflows provide manual operations and do not replace the normal tagged-release sequence.
+Keep `CHANGELOG.md` up to date as the project record; the workflow does not
+edit that file automatically. The PyPI and documentation workflows also offer
+manual dispatch when you need to rerun one of them for an existing tag.

@@ -9,12 +9,6 @@ on:
         description: "Git ref to deploy"
         required: false
         type: string
-  workflow_call:
-    inputs:
-      ref:
-        description: "Git ref to deploy"
-        required: false
-        type: string
 
 permissions: {}
 

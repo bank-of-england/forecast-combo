@@ -198,7 +198,7 @@ pytest
 4. Commit the version and changelog updates, then create the matching tag:
 
 ```bash
-git add pyproject.toml CHANGELOG.md docs/api.md
+git add pyproject.toml CHANGELOG.md
 git commit -m "Prepare release 0.1.1"
 git tag v0.1.1
 git push origin main v0.1.1

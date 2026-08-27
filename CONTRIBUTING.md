@@ -210,12 +210,18 @@ Pushing the tag starts `.github/workflows/create-release.yml`. That workflow cal
 You can also run the workflow from the GitHub Actions tab. Select **Create
 GitHub Release**, choose **Run workflow**, and enter the existing version tag
 in the `release_tag` field. The workflow checks out and tests that tag before
-creating its release. Manual runs do not create tags, so push the tag first.
+creating its release. If the release already exists, the workflow reuses it and
+continues with package publication and documentation deployment. Manual runs do
+not create tags, so push the tag first.
 
-When GitHub publishes the release, two workflows start automatically:
+After the GitHub Release is created, the release workflow calls two reusable
+workflows:
 
 - `publish-pypi.yml` builds the distribution and publishes it to PyPI.
 - `deploy-docs.yml` builds the documentation site and deploys it to GitHub Pages.
+
+Both workflows also listen for the `published` release event, so they can run
+when a release is created through the GitHub interface.
 
 The release workflow generates GitHub release notes from the commit history.
 Keep `CHANGELOG.md` up to date as the project record; the workflow does not edit that file automatically. The `workflow_dispatch` options in the individual workflows provide manual operations and do not replace the normal tagged-release sequence.

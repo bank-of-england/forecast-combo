@@ -36,4 +36,32 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ inputs.release_tag || github.ref_name }}" --title "forecast-combo ${{ inputs.release_tag || github.ref_name }}" --generate-notes --verify-tag
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          tag="$RELEASE_TAG"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; continuing with downstream jobs."
+          else
+            gh release create "$tag" --title "forecast-combo $tag" --generate-notes --verify-tag
+          fi
+
+  publish:
+    name: Publish package to PyPI
+    needs: release
+    uses: ./.github/workflows/publish-pypi.yml
+    with:
+      ref: ${{ inputs.release_tag || github.ref }}
+    permissions:
+      contents: read
+      id-token: write
+
+  documentation:
+    name: Deploy documentation
+    needs: release
+    uses: ./.github/workflows/deploy-docs.yml
+    with:
+      ref: ${{ inputs.release_tag || github.ref }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

@@ -406,6 +406,10 @@ class ForecastCombo:
         self._combo_unique_ids: dict[str, str] = {}
         # Map each label to its configuration and reject conflicting reuse.
         self._combo_labels: dict[str, tuple] = {}
+        # Maps each (variable, source, *extra_id) identity written to
+        # forecast_data so far to the fit configuration that produced it.
+        # See _check_combo_identity_conflicts.
+        self._combo_identities: dict[tuple, tuple] = {}
 
     def fit(
         self,
@@ -758,8 +762,12 @@ class ForecastCombo:
             # Store the label as the source name for downstream specifications.
             self._combined_forecasts["source"] = label
 
-        # Add forecasts with the horizon column required by ForecastData, then
-        # keep the public table's shorter horizon name.
+        self._check_combo_identity_conflicts(config, extra_id)
+
+        # Write back to ForecastData using the forecaster-supplied information
+        # horizon ("forecast_horizon" required by ForecastData), computed
+        # per-row in _estimation_loop. The public-facing "_combined_forecasts"
+        # table keeps only "horizon" (vintage-distance) to avoid ambiguity.
         forecasts_for_write = self._combined_forecasts.drop(columns=["combo_label", "combo"], errors="ignore").copy()
         forecasts_for_write["forecast_horizon"] = forecasts_for_write["forecast_horizon"].astype(int)
         self.forecast_data.add_forecasts(forecasts_for_write, extra_ids=extra_id, compute_levels=True)
@@ -768,6 +776,40 @@ class ForecastCombo:
         # Append this fit's weights to the accumulated table.
         self.weights = pd.concat([self.weights, df_weights], ignore_index=True)
         return self
+
+    def _check_combo_identity_conflicts(self, config: tuple, extra_id: list[str]) -> None:
+        """Raise if this fit's identity is already registered under a different configuration.
+
+        The identity is ``(variable, source, *extra_id)`` (excluding
+        ``type``), checked and recorded per distinct combination present in
+        ``self._combined_forecasts``.
+
+        Parameters
+        ----------
+        config : tuple
+            This fit's configuration, as returned by ``_combo_config``.
+        extra_id : list[str]
+            Extra identification columns being passed to
+            ``ForecastData.add_forecasts``.
+
+        Raises
+        ------
+        ValueError
+            If any identity already maps to a different configuration.
+        """
+        id_cols = ["variable", "source", *(column for column in extra_id if column != "type")]
+        rows = self._combined_forecasts[id_cols].drop_duplicates()
+        for row in rows.itertuples(index=False):
+            bucket = tuple(row)
+            existing_config = self._combo_identities.get(bucket)
+            if existing_config is not None and existing_config != config:
+                identity = dict(zip(id_cols, bucket))
+                raise ValueError(
+                    f"A different fit configuration already exists for identity {identity}. "
+                    "Provide a distinct 'label' to disambiguate."
+                )
+        for row in rows.itertuples(index=False):
+            self._combo_identities[tuple(row)] = config
 
     def _validate_fit_options(
         self,
@@ -863,6 +905,7 @@ class ForecastCombo:
         weights = self.weights.copy()
         combo_unique_ids = self._combo_unique_ids.copy()
         combo_labels = self._combo_labels.copy()
+        combo_identities = self._combo_identities.copy()
         had_combined_forecasts = hasattr(self, "_combined_forecasts")
         combined_forecasts = self._combined_forecasts.copy() if had_combined_forecasts else None
         try:
@@ -872,6 +915,7 @@ class ForecastCombo:
             self.weights = weights
             self._combo_unique_ids = combo_unique_ids
             self._combo_labels = combo_labels
+            self._combo_identities = combo_identities
             if had_combined_forecasts:
                 self._combined_forecasts = combined_forecasts
             elif hasattr(self, "_combined_forecasts"):

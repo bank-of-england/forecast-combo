@@ -878,6 +878,105 @@ def _penultimate_vintage(forecast_data):
     return str(pd.Timestamp(np.sort(forecast_data.outturns["vintage_date"].unique())[-2]).date())
 
 
+def test_unlabelled_fits_with_disjoint_windows_do_not_silently_merge(fer_data):
+    """Two unlabelled 'average' fits for the same variable must not collide.
+
+    Before this guard, a second unlabelled fit using a different source set
+    and a training window that does not overlap the first would write into
+    the same forecast_data identity (source='average') with no error and no
+    warning, silently mixing two different weighting schemes into one
+    series. Overlapping windows hit this too, but surface as an opaque
+    duplicate-record error deep inside ForecastData instead.
+    """
+    forecast_data = fer_data.copy()
+    combo = ForecastCombo(forecast_data=forecast_data)
+    vintages = np.sort(forecast_data.outturns["vintage_date"].unique())
+    early_vintage = str(pd.Timestamp(vintages[len(vintages) // 4]).date())
+    late_vintage = str(pd.Timestamp(vintages[3 * len(vintages) // 4]).date())
+
+    combo.fit(
+        sources=["mpr", "baseline ar(p) model"],
+        variables=["gdpkp"],
+        method="average",
+        training_start=early_vintage,
+        training_end=early_vintage,
+        print_warning=False,
+    )
+
+    with pytest.raises(ValueError, match="different fit configuration already exists"):
+        combo.fit(
+            sources=["mpr", "baseline ar(p) model", "baseline random walk model"],
+            variables=["gdpkp"],
+            method="average",
+            training_start=late_vintage,
+            training_end=late_vintage,
+            print_warning=False,
+        )
+
+
+def test_unlabelled_fits_for_different_variables_are_not_flagged(fer_data):
+    """Sharing a method name across variables is normal and must not raise.
+
+    A raw source like 'mpr' already spans every variable under one
+    unique_id; two unlabelled 'average' fits for different variables with
+    different source sets are the same pattern and must be allowed.
+    """
+    forecast_data = fer_data.copy()
+    combo = ForecastCombo(forecast_data=forecast_data)
+    vintage = _penultimate_vintage(forecast_data)
+
+    combo.fit(
+        sources=["mpr", "baseline ar(p) model"],
+        variables=["gdpkp"],
+        method="average",
+        training_start=vintage,
+        print_warning=False,
+    )
+    combo.fit(
+        sources=["mpr", "baseline ar(p) model", "baseline random walk model"],
+        variables=["cpisa"],
+        method="average",
+        training_start=vintage,
+        print_warning=False,
+    )
+
+    forecasts = combo.forecast_data.forecasts
+    assert set(forecasts.loc[forecasts["source"] == "average", "variable"].unique()) == {"gdpkp", "cpisa"}
+
+
+def test_unlabelled_fits_differing_only_in_discount_param_are_flagged(fer_data):
+    """Same variable, same sources and window, different discount_param.
+
+    The (variable, source, method) key used to bucket candidate fits does
+    not itself include discount_param, so this only stays safe because the
+    stored fit configuration is compared in full, not just on the bucket
+    key. This locks in that a config difference the key doesn't mention is
+    still caught.
+    """
+    forecast_data = fer_data.copy()
+    combo = ForecastCombo(forecast_data=forecast_data)
+    vintage = _penultimate_vintage(forecast_data)
+
+    combo.fit(
+        sources=["mpr", "baseline ar(p) model"],
+        variables=["gdpkp"],
+        method="rmse",
+        training_start=vintage,
+        discount_param=1.0,
+        print_warning=False,
+    )
+
+    with pytest.raises(ValueError, match="different fit configuration already exists"):
+        combo.fit(
+            sources=["mpr", "baseline ar(p) model"],
+            variables=["gdpkp"],
+            method="rmse",
+            training_start=vintage,
+            discount_param=0.9,
+            print_warning=False,
+        )
+
+
 def test_fit_with_nested_combo_spec(fer_data):
     """A nested specification creates every stage as a forecast source."""
     combo = ForecastCombo(forecast_data=fer_data.copy())

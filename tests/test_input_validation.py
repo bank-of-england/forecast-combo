@@ -435,6 +435,7 @@ def test_failed_mixed_hierarchy_restores_state(monkeypatch):
     combo.weights = pd.DataFrame({"weight": [1.0]})
     combo._combo_unique_ids = {}
     combo._combo_labels = {}
+    combo._combo_identities = {}
     child = ComboSpec("child", ["raw"])
 
     def fail_after_child(spec, variables):

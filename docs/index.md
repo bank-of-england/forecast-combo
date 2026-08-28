@@ -69,7 +69,7 @@ pytest
 
 | Category | Packages |
 |----------|----------|
-| **Core** | `forecast_evaluation`, `jax`, `pandas`, `numpy`, `scipy`, `tqdm` |
+| **Core** | `forecast_evaluation`, `pandas`, `numpy`, `scipy`, `tqdm` |
 | **Plots** | `matplotlib` (install with `pip install "forecast-combo[plots]"`) |
 | **Dashboard** | `shiny`, `matplotlib` (install with `pip install "forecast-combo[dashboard]"`) |
 | **Dev** | `matplotlib`, `shiny`, `pre_commit`, `pytest`, `pytest-cov`, `ruff`, `build`, `pyarrow`, `syrupy` |

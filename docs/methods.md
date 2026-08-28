@@ -25,7 +25,7 @@ Each model forecast is multiplied by its weight, and the products are summed.
 | [Inverse MAE](#inverse-mae) | `mae` | `w_i ≥ 0`, `sum = 1` | Closed-form |
 | [Inverse Huber](#inverse-huber-loss) | `huber` | `w_i ≥ 0`, `sum = 1` | Closed-form |
 | [Least squares](#least-squares-ols) | `least_squares` | None | OLS |
-| [Constrained LS](#constrained-least-squares) | `constrained_least_squares` | `w_i ≥ 0`, `sum = 1` | SLSQP with JAX gradients |
+| [Constrained LS](#constrained-least-squares) | `constrained_least_squares` | `w_i ≥ 0`, `sum = 1` | SLSQP with analytical gradients |
 
 ---
 
@@ -222,9 +222,9 @@ y = np.array([1.0, 1.15, 0.95])
 weights = constrained_least_squares(X, y)
 ```
 
-The implementation minimises the least-squares loss with JAX gradients and
-SciPy's SLSQP solver. It keeps every weight non-negative and makes the weights
-sum to one.
+The implementation minimises the least-squares loss with analytical gradients and
+SciPy's SLSQP solver. It constrains every weight to be non-negative and makes
+the weights sum to one.
 
 !!! tip "When to use constrained LS"
 

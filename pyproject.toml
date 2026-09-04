@@ -55,8 +55,10 @@ dashboard = [
     "shiny",
 ]
 
+# ``dev`` is the full contributor set: tooling plus everything the quality
+# checks need, so ``pip install -e ".[dev]"`` is all that is required.
 dev = [
-    "matplotlib",
+    "forecast-combo[dashboard,docs]",
     "pre_commit",
     "pydoclint",
     "pytest",
@@ -64,7 +66,6 @@ dev = [
     "pytest-cov",
     "ruff",
     "build",
-    "shiny",
     "syrupy",
 ]
 

@@ -33,6 +33,7 @@ The hooks run:
 - Ruff formatting
 - API documentation generation in `docs/api.md`
 - NumPy-style docstring checks with `pydoclint`
+- A Zensical documentation build
 - The full pytest suite
 
 To run the same checks without making a commit:

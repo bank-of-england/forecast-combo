@@ -373,7 +373,9 @@ class ForecastCombo:
     """Combine and manage forecast data from multiple sources.
 
     A copy of the input forecast data is stored on the instance, and the
-    estimated weights accumulate across all :meth:`fit` calls.
+    estimated weights accumulate across all :meth:`fit` calls. The weights
+    table includes ``n_obs`` (training observations after any ``window_size``
+    cap) and ``fitted`` (False when the fit was skipped for lack of data).
 
     Attributes
     ----------
@@ -1397,6 +1399,8 @@ def _estimation_loop(
                             "model": model_name,
                             "weight": weight,
                             "std_error": se,
+                            "n_obs": n_train,
+                            "fitted": not skip_training,
                         }
                     )
 

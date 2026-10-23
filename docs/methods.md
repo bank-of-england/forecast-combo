@@ -15,6 +15,20 @@ Each model forecast is multiplied by its weight, and the products are summed.
 
 ---
 
+## Weights table
+
+`ForecastCombo.weights` has one row per model, combination method, variable,
+horizon and vintage. It includes these estimation columns:
+
+| Column | Description |
+|--------|-------------|
+| `weight` | Estimated weight for the model. |
+| `std_error` | Standard error of the weight, or `NaN` when not available. |
+| `n_obs` | Training observations used for the fit, after any `window_size` cap. Filled in for `average`, which does not use it. |
+| `fitted` | `False` when the fit was skipped for lack of data, and `True` otherwise. |
+
+---
+
 ## Supported methods
 
 | Method | Key | Constraints | Optimisation |

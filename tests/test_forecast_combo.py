@@ -707,6 +707,66 @@ def test_allow_partial_sources_false_allows_complete_fit():
     assert list_combined_forecasts
 
 
+def _single_source_history(n_dates):
+    dates = pd.date_range("2020-03-31", periods=n_dates, freq="QE")
+    return pd.DataFrame(
+        {
+            "date": dates,
+            "variable": "x",
+            "vintage_date_forecast": dates,
+            "horizon": 0,
+            "unique_id": "a",
+            "value_forecast": np.arange(1.0, n_dates + 1),
+            "vintage_date_outturn": pd.NaT,
+            "outturn_target_minus_vintage": -1,
+            "value_outturn": np.arange(1.0, n_dates + 1) + 0.5,
+        }
+    )
+
+
+def _run_n_obs_loop(n_dates, method, window_size=None):
+    merged_data = _single_source_history(n_dates)
+    return forecast_combo_module._estimation_loop(
+        merged_data=merged_data,
+        training_vintages=np.array([merged_data["date"].max()]),
+        freq="Q",
+        k=0,
+        metric="levels",
+        period_filter=None,
+        sources=["a"],
+        methods=[method],
+        window_size=window_size,
+        discount_param=1.0,
+        print_warning=False,
+    )
+
+
+def test_weights_report_n_obs_and_fitted_on_skipped_vintage():
+    """A vintage with no training history is skipped and reports zero observations."""
+    list_weights, _ = _run_n_obs_loop(n_dates=1, method="rmse")
+
+    assert list_weights
+    assert all(row["n_obs"] == 0 and row["fitted"] is False for row in list_weights)
+
+
+def test_weights_n_obs_counts_training_history():
+    list_weights, _ = _run_n_obs_loop(n_dates=6, method="rmse")
+
+    assert all(row["fitted"] is True and row["n_obs"] == 5 for row in list_weights)
+
+
+def test_weights_n_obs_respects_window_size():
+    list_weights, _ = _run_n_obs_loop(n_dates=6, method="rmse", window_size=3)
+
+    assert all(row["fitted"] is True and row["n_obs"] == 3 for row in list_weights)
+
+
+def test_weights_n_obs_is_filled_for_average():
+    list_weights, _ = _run_n_obs_loop(n_dates=6, method="average", window_size=3)
+
+    assert all(row["n_obs"] == 3 and row["fitted"] is True for row in list_weights)
+
+
 def test_combo_spec_defaults():
     """A ``ComboSpec`` supplies the documented defaults."""
     spec = ComboSpec(name="my_combo", sources=["a", "b"])

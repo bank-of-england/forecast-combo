@@ -949,7 +949,6 @@ def test_heatmap_by_vintage_cells_match_input_weights(known_weights_df):
         plt.close(fig)
 
 
-
 # ===========================================================================
 # vintage_date selection on the by-horizon plots
 # ===========================================================================

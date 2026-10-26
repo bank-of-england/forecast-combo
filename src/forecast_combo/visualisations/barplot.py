@@ -6,11 +6,13 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from forecast_combo.visualisations._plot_utils import (
+    by_horizon_title,
     facet_dimensions,
     facet_title,
     filter_plot_data,
     prepare_combo_data,
     render_facet_grid,
+    select_vintage,
 )
 
 
@@ -172,8 +174,11 @@ def bar_plot_by_horizon(
     method: str | list[str] | None = None,
     variable: str | list[str] | None = None,
     combo_label: str | list[str] | None = None,
+    vintage_date: str | pd.Timestamp | None = None,
 ) -> tuple[Figure, np.ndarray]:
-    """Plot average weights by forecast horizon as bars.
+    """Plot weights by forecast horizon as bars.
+
+    By default each facet shows the weights of its latest fitted vintage.
 
     Parameters
     ----------
@@ -190,6 +195,10 @@ def bar_plot_by_horizon(
         Variables used to filter the data.
     combo_label : str | list[str] | None
         Combination labels used to filter the data.
+    vintage_date : str | pd.Timestamp | None
+        Vintage to plot. ``None`` uses each facet's latest fitted vintage, a
+        date selects that exact vintage, and ``"all"`` averages over every
+        vintage.
 
     Returns
     -------
@@ -199,7 +208,8 @@ def bar_plot_by_horizon(
     Raises
     ------
     ValueError
-        If ``y_axis`` is not a supported dimension.
+        If ``y_axis`` is not a supported dimension, ``vintage_date`` is not a
+        valid date, or a facet has no rows for the requested vintage.
     """
     if y_axis not in ("model", "method", "variable"):
         raise ValueError("y_axis must be 'model', 'method', or 'variable'")
@@ -210,9 +220,11 @@ def bar_plot_by_horizon(
 
     # Use every dimension except y_axis for the facets.
     facet_dims = facet_dimensions(df, y_axis)
+    df = select_vintage(df, facet_dims, vintage_date)
+    show_vintage = vintage_date != "all"
 
     def render_facet(ax, df_subset, facet_combo, row, col, n_rows, n_cols):
-        # Average over vintage dates, then arrange values by y_axis and horizon.
+        # Averages only collapse duplicates (e.g. combo labels) once a vintage is chosen.
         pivot = df_subset.groupby(["horizon", y_axis])["weight"].mean().unstack(y_axis).sort_index()
 
         x, has_negative = _draw_bars(ax, pivot, _use_stacked_bars(pivot, y_axis))
@@ -220,13 +232,13 @@ def bar_plot_by_horizon(
         ax.set_xticks(x)
         ax.set_xticklabels(pivot.index.tolist(), fontsize=8)
 
-        title = facet_title(facet_dims, facet_combo, df_subset)
+        title = facet_title(facet_dims, facet_combo, df_subset, show_vintage)
         ax.set_title(title, fontsize=11)
 
         if row == n_rows - 1:
             ax.set_xlabel("Forecast horizon", fontsize=9)
         if col == 0:
-            ax.set_ylabel("Average weight", fontsize=9)
+            ax.set_ylabel("Average weight" if vintage_date == "all" else "Weight", fontsize=9)
 
         ax.legend(fontsize=8)
         _set_weight_ylim(ax, has_negative)
@@ -239,5 +251,5 @@ def bar_plot_by_horizon(
         constrained_layout=True,
     )
 
-    fig.suptitle("Average Weights by Horizon", fontsize=14)
+    fig.suptitle(by_horizon_title(vintage_date), fontsize=14)
     return fig, axes_2d

@@ -508,14 +508,16 @@ def test_heatmap_uses_shared_colour_limits_across_facets(plot_func):
         ]
     )
 
+    # By-horizon plots show only the latest vintage, so its colour scale excludes the first vintage.
+    expected_limits = (2.0, 200.0) if plot_func is heatmap_by_horizon else (1.0, 200.0)
     fig, axes = plot_func(weights, y_axis="model")
     try:
         images = [image for ax in axes.flat if ax.get_visible() for image in ax.get_images()]
         assert len(images) == 2
-        assert {image.get_clim() for image in images} == {(1.0, 200.0)}
+        assert {image.get_clim() for image in images} == {expected_limits}
 
         colourbar = next(axis._colorbar for axis in fig.axes if axis not in axes.flat)
-        assert colourbar.mappable.get_clim() == pytest.approx((1.0, 200.0))
+        assert colourbar.mappable.get_clim() == pytest.approx(expected_limits)
     finally:
         plt.close(fig)
 
@@ -890,7 +892,7 @@ def known_weights_df():
 
 def test_line_plot_by_horizon_plots_vintage_averages(known_weights_df):
     """Each horizon shows the mean weight across vintages, without clipping."""
-    fig, axes = line_plot_by_horizon(known_weights_df, y_axis="model")
+    fig, axes = line_plot_by_horizon(known_weights_df, y_axis="model", vintage_date="all")
     try:
         assert dict(plotted_line_values(axes, "a")) == pytest.approx({1: 0.3, 2: 0.7})
         assert dict(plotted_line_values(axes, "b")) == pytest.approx({1: 0.7, 2: 0.3})
@@ -913,7 +915,7 @@ def test_line_plot_by_vintage_plots_horizon_averages(known_weights_df):
 
 def test_line_plot_by_horizon_respects_model_filter(known_weights_df):
     """Filtering to one model must remove the other model's line entirely."""
-    fig, axes = line_plot_by_horizon(known_weights_df, y_axis="model", model=["a"])
+    fig, axes = line_plot_by_horizon(known_weights_df, y_axis="model", model=["a"], vintage_date="all")
     try:
         assert dict(plotted_line_values(axes, "a")) == pytest.approx({1: 0.3, 2: 0.7})
         assert plotted_line_values(axes, "b") == []
@@ -923,7 +925,7 @@ def test_line_plot_by_horizon_respects_model_filter(known_weights_df):
 
 def test_bar_plot_by_horizon_bar_heights_match_averages(known_weights_df):
     """Stacked model segments carry the aggregated weights and total one."""
-    fig, axes = bar_plot_by_horizon(known_weights_df, y_axis="model")
+    fig, axes = bar_plot_by_horizon(known_weights_df, y_axis="model", vintage_date="all")
     try:
         heights = plotted_bar_values(axes)
         assert sorted(heights) == pytest.approx([0.3, 0.3, 0.7, 0.7])
@@ -943,5 +945,118 @@ def test_heatmap_by_vintage_cells_match_input_weights(known_weights_df):
         assert len(images) == 1
         # Rows are models 'a' then 'b'; columns are the two vintages in order.
         np.testing.assert_allclose(images[0].get_array(), np.array([[0.4, 0.6], [0.6, 0.4]]))
+    finally:
+        plt.close(fig)
+
+
+# ===========================================================================
+# vintage_date selection on the by-horizon plots
+# ===========================================================================
+
+BY_HORIZON_PLOTS = [line_plot_by_horizon, heatmap_by_horizon, bar_plot_by_horizon]
+
+
+@pytest.fixture
+def vintage_weights_df():
+    """Variable 'x' has three vintages (the latest unfitted); 'y' has no latest vintage."""
+    weights_a = {
+        ("x", "2024-03-31", True): 0.1,
+        ("x", "2024-06-30", True): 0.2,
+        ("x", "2024-09-30", False): 0.9,
+        ("y", "2024-03-31", True): 0.5,
+        ("y", "2024-06-30", True): 0.6,
+    }
+    rows = []
+    for (variable, vintage, fitted), weight_a in weights_a.items():
+        for model, weight in [("a", weight_a), ("b", 1 - weight_a)]:
+            rows.append(
+                {
+                    "combo_label": "combo",
+                    "model": model,
+                    "method": "rmse",
+                    "variable": variable,
+                    "horizon": 1,
+                    "vintage_date": pd.Timestamp(vintage),
+                    "weight": weight,
+                    "frequency": "Q",
+                    "fitted": fitted,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def plotted_model_a_weights(plot_func, df, **kwargs):
+    """Return the sorted weights drawn for model 'a' and the figure's suptitle."""
+    fig, axes = plot_func(df, y_axis="model", **kwargs)
+    try:
+        values = []
+        for ax in np.ravel(axes):
+            if not ax.get_visible():
+                continue
+            if plot_func is line_plot_by_horizon:
+                values.extend(ax.get_lines()[0].get_ydata())
+            elif plot_func is heatmap_by_horizon:
+                # Rows are models 'a' then 'b'.
+                values.extend(ax.get_images()[0].get_array()[0])
+            else:
+                values.extend(p.get_height() for p in ax.containers[0].patches)
+        return sorted(values), fig.get_suptitle()
+    finally:
+        plt.close(fig)
+
+
+@pytest.mark.parametrize("plot_func", BY_HORIZON_PLOTS)
+def test_by_horizon_defaults_to_latest_fitted_vintage_per_facet(plot_func, vintage_weights_df):
+    """Unfitted vintages are skipped, and a facet without the global latest falls back to its own."""
+    values, title = plotted_model_a_weights(plot_func, vintage_weights_df)
+    assert values == pytest.approx([0.2, 0.6])
+    assert "Latest Vintage" in title
+
+
+@pytest.mark.parametrize("plot_func", BY_HORIZON_PLOTS)
+@pytest.mark.parametrize("vintage", ["2024-03-31", pd.Timestamp("2024-03-31")])
+def test_by_horizon_explicit_earlier_vintage(plot_func, vintage_weights_df, vintage):
+    """An explicit vintage plots exactly that vintage."""
+    values, title = plotted_model_a_weights(plot_func, vintage_weights_df, vintage_date=vintage)
+    assert values == pytest.approx([0.1, 0.5])
+    assert "2024-03-31" in title
+
+
+@pytest.mark.parametrize("plot_func", BY_HORIZON_PLOTS)
+def test_by_horizon_explicit_unfitted_vintage_is_allowed(plot_func, vintage_weights_df):
+    """An explicitly requested vintage is not required to be fitted."""
+    plotted_model_a_weights(plot_func, vintage_weights_df, variable="x", vintage_date="2024-09-30")
+
+
+@pytest.mark.parametrize("plot_func", BY_HORIZON_PLOTS)
+def test_by_horizon_all_vintages_averages(plot_func, vintage_weights_df):
+    """``vintage_date="all"`` keeps the historical mean over every vintage."""
+    values, title = plotted_model_a_weights(plot_func, vintage_weights_df, vintage_date="all")
+    assert values == pytest.approx([0.4, 0.55])
+    assert title == "Average Weights by Horizon"
+
+
+@pytest.mark.parametrize("plot_func", BY_HORIZON_PLOTS)
+def test_by_horizon_missing_vintage_raises(plot_func, vintage_weights_df):
+    """A facet without rows at the requested vintage raises a clear error."""
+    with pytest.raises(ValueError, match="No weights for vintage 2024-09-30 in facet .*variable: y"):
+        plot_func(vintage_weights_df, y_axis="model", vintage_date="2024-09-30")
+
+
+@pytest.mark.parametrize("plot_func", BY_HORIZON_PLOTS)
+def test_by_horizon_invalid_vintage_raises(plot_func, vintage_weights_df):
+    """A value that is not a date raises ValueError."""
+    with pytest.raises(ValueError, match="not a valid date"):
+        plot_func(vintage_weights_df, y_axis="model", vintage_date="not-a-date")
+
+
+@pytest.mark.parametrize("plot_func", BY_HORIZON_PLOTS)
+def test_by_horizon_facet_titles_include_vintage(plot_func, vintage_weights_df):
+    """Each facet title names the vintage it displays."""
+    fig, axes = plot_func(vintage_weights_df, y_axis="model")
+    try:
+        titles = {ax.get_title() for ax in np.ravel(axes) if ax.get_visible()}
+        assert any("variable: x" in t and "vintage: 2024-06-30" in t for t in titles)
+        assert any("variable: y" in t and "vintage: 2024-06-30" in t for t in titles)
     finally:
         plt.close(fig)

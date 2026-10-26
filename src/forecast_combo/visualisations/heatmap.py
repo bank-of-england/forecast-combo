@@ -13,11 +13,13 @@ from matplotlib.figure import Figure  # noqa: E402
 
 from forecast_combo.visualisations._plot_utils import (  # noqa: E402
     add_colourbar,
+    by_horizon_title,
     facet_dimensions,
     facet_title,
     filter_plot_data,
     prepare_combo_data,
     render_facet_grid,
+    select_vintage,
     validate_frequency_column,
 )
 
@@ -176,8 +178,11 @@ def heatmap_by_horizon(
     method: str | list[str] | None = None,
     variable: str | list[str] | None = None,
     combo_label: str | list[str] | None = None,
+    vintage_date: str | pd.Timestamp | None = None,
 ) -> tuple[Figure, np.ndarray]:
-    """Plot average weights by forecast horizon as a heatmap.
+    """Plot weights by forecast horizon as a heatmap.
+
+    By default each facet shows the weights of its latest fitted vintage.
 
     Parameters
     ----------
@@ -194,6 +199,10 @@ def heatmap_by_horizon(
         Variables used to filter the data.
     combo_label : str | list[str] | None
         Combination labels used to filter the data.
+    vintage_date : str | pd.Timestamp | None
+        Vintage to plot. ``None`` uses each facet's latest fitted vintage, a
+        date selects that exact vintage, and ``"all"`` averages over every
+        vintage.
 
     Returns
     -------
@@ -203,7 +212,8 @@ def heatmap_by_horizon(
     Raises
     ------
     ValueError
-        If ``y_axis`` is not a supported dimension.
+        If ``y_axis`` is not a supported dimension, ``vintage_date`` is not a
+        valid date, or a facet has no rows for the requested vintage.
     """
     if y_axis not in ["model", "method", "variable"]:
         raise ValueError("y_axis must be 'model', 'method', or 'variable'")
@@ -214,6 +224,8 @@ def heatmap_by_horizon(
 
     # Use every dimension except y_axis for the facets.
     facet_dims = facet_dimensions(df_filtered, y_axis)
+    df_filtered = select_vintage(df_filtered, facet_dims, vintage_date)
+    show_vintage = vintage_date != "all"
 
     colour_mappable = _shared_colour_mappable(df_filtered["weight"])
 
@@ -223,7 +235,7 @@ def heatmap_by_horizon(
 
         if pivot_data.empty:
             ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
-            title = facet_title(facet_dims, facet_combo, df_subset)
+            title = facet_title(facet_dims, facet_combo, df_subset, show_vintage)
             ax.set_title(title)
             return
 
@@ -243,7 +255,7 @@ def heatmap_by_horizon(
         if col > 0:
             ax.set_yticklabels([])
 
-        title = facet_title(facet_dims, facet_combo, df_subset)
+        title = facet_title(facet_dims, facet_combo, df_subset, show_vintage)
         ax.set_title(title, fontsize=11)
 
         # Label the x-axis on the bottom row only.
@@ -263,7 +275,7 @@ def heatmap_by_horizon(
         hide_unused_axes=lambda ax: ax.axis("off"),
     )
 
-    fig.suptitle("Average Weights by Horizon", fontsize=14)
+    fig.suptitle(by_horizon_title(vintage_date), fontsize=14)
 
     visible_axes = [axis for axis in axes_2d.flat if axis.get_visible()]
     add_colourbar(fig, colour_mappable, visible_axes, "Weight")

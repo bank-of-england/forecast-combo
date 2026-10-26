@@ -153,9 +153,75 @@ def facet_dimensions(df: pd.DataFrame, y_axis: str) -> list[str]:
     return dimensions
 
 
-def facet_title(facet_dims: list[str], facet_values: tuple, df_subset: pd.DataFrame) -> str:
-    """Format a facet title from its dimension values."""
-    return " | ".join(f"{dimension}: {value}" for dimension, value in zip(facet_dims, facet_values))
+def facet_title(
+    facet_dims: list[str],
+    facet_values: tuple,
+    df_subset: pd.DataFrame,
+    show_vintage: bool = False,
+) -> str:
+    """Format a facet title from its dimension values, optionally with its vintage."""
+    parts = [f"{dimension}: {value}" for dimension, value in zip(facet_dims, facet_values)]
+    if show_vintage:
+        vintages = pd.to_datetime(df_subset["vintage_date"]).unique()
+        if len(vintages) == 1:
+            parts.append(f"vintage: {pd.Timestamp(vintages[0]).date()}")
+    return " | ".join(parts)
+
+
+def _parse_vintage_date(vintage_date) -> pd.Timestamp:
+    """Convert an explicit vintage to a Timestamp or raise a clear error."""
+    if isinstance(vintage_date, bool):
+        raise TypeError("vintage_date must not be a bool")
+    try:
+        parsed = pd.Timestamp(vintage_date)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"vintage_date {vintage_date!r} is not a valid date, None, or 'all'") from exc
+    if pd.isna(parsed):
+        raise ValueError(f"vintage_date {vintage_date!r} is not a valid date, None, or 'all'")
+    return parsed
+
+
+def select_vintage(df: pd.DataFrame, facet_dims: list[str], vintage_date) -> pd.DataFrame:
+    """Restrict ``df`` to one vintage per facet.
+
+    ``None`` picks each facet's latest vintage with fitted rows, a date picks
+    that exact vintage in every facet, and ``"all"`` returns ``df`` unchanged.
+    """
+    if isinstance(vintage_date, str) and vintage_date == "all":
+        return df
+    target = None if vintage_date is None else _parse_vintage_date(vintage_date)
+
+    work = df.assign(_vintage=pd.to_datetime(df["vintage_date"]))
+    if "fitted" in work.columns:
+        work["_fitted"] = work["fitted"].fillna(True).astype(bool)
+    else:
+        work["_fitted"] = True
+
+    pieces = []
+    for key, group in work.groupby(facet_dims, sort=False):
+        key = key if isinstance(key, tuple) else (key,)
+        if target is None:
+            fitted = group[group["_fitted"]]
+            if fitted.empty:
+                raise ValueError(f"No fitted weights for facet {facet_title(facet_dims, key, group)}")
+            rows = fitted[fitted["_vintage"] == fitted["_vintage"].max()]
+        else:
+            rows = group[group["_vintage"] == target]
+            if rows.empty:
+                raise ValueError(
+                    f"No weights for vintage {target.date()} in facet {facet_title(facet_dims, key, group)}"
+                )
+        pieces.append(rows)
+    return pd.concat(pieces).drop(columns=["_vintage", "_fitted"])
+
+
+def by_horizon_title(vintage_date) -> str:
+    """Return the figure title for a by-horizon plot."""
+    if isinstance(vintage_date, str) and vintage_date == "all":
+        return "Average Weights by Horizon"
+    if vintage_date is None:
+        return "Weights by Horizon (Latest Vintage)"
+    return f"Weights by Horizon (Vintage {_parse_vintage_date(vintage_date).date()})"
 
 
 def _facet_grid_shape(n_plots: int) -> tuple[int, int]:

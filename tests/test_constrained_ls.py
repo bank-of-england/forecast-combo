@@ -67,6 +67,16 @@ def test_constrained_least_squares_gradient_matches_finite_differences():
             assert np.max(np.abs(analytical - numerical)) / scale < 1e-5
 
 
+def test_constrained_least_squares_single_source_returns_unit_weight():
+    """A single source has only one feasible weight, even with one observation (issue #10)."""
+    from forecast_combo.forecast_combo import get_weights
+
+    weights, std_err = get_weights(np.array([[1.0]]), np.array([0.5]), "constrained_least_squares")
+
+    np.testing.assert_array_equal(weights, [1.0])
+    assert np.isnan(std_err).all()
+
+
 def test_constrained_least_squares_does_not_import_jax():
     """The package must not pull in JAX: it flips ``jax_enable_x64`` process-wide."""
     import sys

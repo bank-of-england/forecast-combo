@@ -145,11 +145,16 @@ def constrained_least_squares(X: np.ndarray, y: np.ndarray, window_size: int | N
     Raises
     ------
     ValueError
-        If ``y`` has zero variance over the estimation sample.
+        If ``y`` has zero variance over the estimation sample and there is
+        more than one source.
     RuntimeError
         If the constrained optimisation fails or returns invalid weights.
     """
     _validate_forecast_matrix(X, y)
+
+    # The unit simplex in one dimension is the single point w = 1.
+    if X.shape[1] == 1:
+        return np.ones(1)
 
     # Select the trailing estimation window.
     X, y = apply_window(X, y, window_size)
